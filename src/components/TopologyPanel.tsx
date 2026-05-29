@@ -13,22 +13,25 @@ import { Z_INDEX } from '../styles/tokens';
 
 type Props = PanelProps<TopologyOptions>;
 
-const isPanelEditRoute = (panelId: number): boolean => {
+const isPanelEditRoute = (): boolean => {
   try {
-    return locationService.getSearch().get('editPanel') === String(panelId);
+    const search = locationService.getSearch();
+    const editPanel = search.get('editPanel');
+    return editPanel !== null;
   } catch {
-    return (
-      typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).get('editPanel') === String(panelId)
-    );
+    if (typeof window === 'undefined') {
+      return false;
+    }
+    const editPanel = new URLSearchParams(window.location.search).get('editPanel');
+    return editPanel !== null;
   }
 };
 
 const usePanelEditMode = (panelId: number): boolean => {
-  const [isEditing, setIsEditing] = useState(() => isPanelEditRoute(panelId));
+  const [isEditing, setIsEditing] = useState(() => isPanelEditRoute());
 
   useEffect(() => {
-    const update = () => setIsEditing(isPanelEditRoute(panelId));
+    const update = () => setIsEditing(isPanelEditRoute());
     update();
 
     const subscription = locationService.getLocationObservable().subscribe(update);
