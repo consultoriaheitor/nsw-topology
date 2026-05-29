@@ -1,5 +1,5 @@
 import React from 'react';
-import { COLORS, SHADOW, RADIUS, BLUR, FONT } from '../../styles/tokens';
+import { COLORS, SHADOW, RADIUS, BLUR, FONT, Z_INDEX } from '../../styles/tokens';
 
 interface Props {
   x: number;
@@ -10,13 +10,14 @@ interface Props {
 
 const boxStyle: React.CSSProperties = {
   position: 'absolute',
-  zIndex: 50,
+  zIndex: Z_INDEX.popover,
   background: COLORS.surface,
   border: `1px solid ${COLORS.borderStrong}`,
   borderRadius: RADIUS.large,
   boxShadow: SHADOW.dropdown,
   padding: 6,
   minWidth: 160,
+  maxWidth: 'calc(100vw - 16px)',
   backdropFilter: BLUR,
 };
 

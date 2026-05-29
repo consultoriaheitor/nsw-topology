@@ -129,7 +129,14 @@ export const ValueMappingsModal: React.FC<Props> = ({ mappings, onSave, onClose 
               background: 'rgba(255,255,255,0.03)',
             }}
           >
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 150px 28px', gap: 8, alignItems: 'end' }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+                gap: 8,
+                alignItems: 'end',
+              }}
+            >
               <Field label="Name">
                 <Input
                   value={mapping.name}
@@ -158,8 +165,7 @@ export const ValueMappingsModal: React.FC<Props> = ({ mappings, onSave, onClose 
                   key={entry.id}
                   style={{
                     display: 'grid',
-                    gridTemplateColumns:
-                      mapping.type === 'range' ? '1fr 1fr 1fr 120px 120px 28px' : '1fr 1fr 120px 120px 28px',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))',
                     gap: 8,
                     alignItems: 'end',
                   }}

@@ -9,6 +9,7 @@ import { CanvasRenderer } from './canvas/CanvasRenderer';
 import { TopologySidebar } from './sidebar/TopologySidebar';
 import { BackupModal } from './editors/BackupModal';
 import { ValueMappingsModal } from './editors/ValueMappingsModal';
+import { Z_INDEX } from '../styles/tokens';
 
 type Props = PanelProps<TopologyOptions>;
 
@@ -156,7 +157,9 @@ const InnerPanel: React.FC<Props> = ({ id, options, data, width, height, onOptio
   const canvasHeight = Math.max(height - titleBarHeight, 0);
 
   return (
-    <div style={{ position: 'relative', width, height, overflow: 'hidden', fontFamily: 'Inter, sans-serif' }}>
+    <div
+      style={{ position: 'relative', width, height, overflow: 'hidden', fontFamily: 'Inter, sans-serif', isolation: 'isolate' }}
+    >
       {title && (
         <div
           style={{
@@ -172,7 +175,11 @@ const InnerPanel: React.FC<Props> = ({ id, options, data, width, height, onOptio
             borderBottom: '1px solid rgba(255,255,255,0.06)',
             textShadow: '0 1px 4px rgba(0,0,0,0.4)',
             position: 'relative',
-            zIndex: 25,
+            zIndex: Z_INDEX.chrome,
+            padding: '0 10px',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
           }}
         >
           {title}

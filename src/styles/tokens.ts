@@ -41,6 +41,13 @@ export const SHADOW = {
   card: '0 4px 20px rgba(0, 0, 0, 0.4)',
 } as const;
 
+export const Z_INDEX = {
+  chrome: 1000,
+  edgeLabel: 20000,
+  popover: 50000,
+  tooltip: 60000,
+} as const;
+
 export const RADIUS = {
   small: 5,
   medium: 8,

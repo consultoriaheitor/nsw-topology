@@ -1,4 +1,5 @@
 import React from 'react';
+import { Z_INDEX } from '../../styles/tokens';
 
 interface Props {
   onAddNode: () => void;
@@ -87,7 +88,7 @@ const bar: React.CSSProperties = {
   alignItems: 'center',
   paddingTop: 10,
   gap: 4,
-  zIndex: 20,
+  zIndex: Z_INDEX.chrome,
 };
 
 const btnBase: React.CSSProperties = {
@@ -124,7 +125,7 @@ const tooltipStyle: React.CSSProperties = {
   color: '#e0e0f0',
   whiteSpace: 'nowrap',
   pointerEvents: 'none',
-  zIndex: 100,
+  zIndex: Z_INDEX.popover,
   boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
   backdropFilter: 'blur(12px)',
 };

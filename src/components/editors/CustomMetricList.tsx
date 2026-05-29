@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Button, Field, Input, Select, ColorPicker, IconButton, UnitPicker } from '@grafana/ui';
 import { CustomMetric, ValueMapping } from '../../types';
-import { COLORS, FONT } from '../../styles/tokens';
+import { COLORS, FONT, Z_INDEX } from '../../styles/tokens';
 import { REDUCER_OPTIONS, ICON_EMOJI_OPTIONS, THRESHOLD_OPERATOR_OPTIONS } from '../../constants';
 
 // check if it looks like a regex (starts with /)
@@ -135,7 +135,7 @@ const RegexFieldSelect: React.FC<RegexFieldSelectProps> = ({ value, options, onC
             background: '#1e1f25',
             border: `1px solid ${COLORS.border}`,
             borderRadius: 4,
-            zIndex: 999,
+            zIndex: Z_INDEX.popover,
             marginTop: 2,
           }}
         >
@@ -271,7 +271,13 @@ export const CustomMetricList: React.FC<Props> = ({
           {metric.enabled && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {/* Row 1: Name and Icon */}
-              <div style={{ display: 'grid', gridTemplateColumns: showIconPicker ? '2fr 1fr' : '1fr', gap: 8 }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: showIconPicker ? 'repeat(auto-fit, minmax(140px, 1fr))' : '1fr',
+                  gap: 8,
+                }}
+              >
                 <Field label="Metric Name">
                   <Input value={metric.name} onChange={(e) => updateMetric(idx, { name: e.currentTarget.value })} />
                 </Field>
@@ -301,7 +307,7 @@ export const CustomMetricList: React.FC<Props> = ({
               </div>
 
               {/* Row 3: Aggregation, Unit, Decimals */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(96px, 1fr))', gap: 8 }}>
                 <Field label="Aggregation">
                   <Select
                     options={REDUCER_OPTIONS}
@@ -324,7 +330,7 @@ export const CustomMetricList: React.FC<Props> = ({
               </div>
 
               {/* Row 4: Alerts */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 8 }}>
                 <Field label="Alert Condition">
                   <Select
                     options={THRESHOLD_OPERATOR_OPTIONS}

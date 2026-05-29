@@ -1,5 +1,5 @@
 import React from 'react';
-import { COLORS, SHADOW, RADIUS, BLUR, FONT } from '../../styles/tokens';
+import { COLORS, SHADOW, RADIUS, BLUR, FONT, Z_INDEX } from '../../styles/tokens';
 
 interface Props {
   query: string;
@@ -16,6 +16,8 @@ const containerStyle: React.CSSProperties = {
   alignItems: 'center',
   gap: 8,
   boxShadow: SHADOW.card,
+  maxWidth: 'calc(100vw - 24px)',
+  zIndex: Z_INDEX.popover,
 };
 
 const inputStyle: React.CSSProperties = {
@@ -24,7 +26,7 @@ const inputStyle: React.CSSProperties = {
   color: COLORS.text,
   fontSize: FONT.md,
   outline: 'none',
-  width: 220,
+  width: 'min(220px, calc(100vw - 84px))',
 };
 
 const clearBtnStyle: React.CSSProperties = {

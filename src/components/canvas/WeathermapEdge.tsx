@@ -1,7 +1,7 @@
 import React, { memo, useState } from 'react';
 import { getValueFormat, formattedValueToString } from '@grafana/data';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps, type Edge } from '@xyflow/react';
-import { COLORS, FONT, tooltipBox, tooltipDivider, tooltipLabel, tooltipRow, statusDot } from '../../styles/tokens';
+import { COLORS, FONT, Z_INDEX, tooltipBox, tooltipDivider, tooltipLabel, tooltipRow, statusDot } from '../../styles/tokens';
 
 export type TrafficHistoryPoint = { time: number; dl: number; ul: number };
 
@@ -370,6 +370,8 @@ export const WeathermapEdge = memo(
                 alignItems: 'center',
                 gap: 1,
                 lineHeight: 1.3,
+                zIndex: Z_INDEX.edgeLabel,
+                maxWidth: 'calc(100vw - 24px)',
               }}
             >
               {label && <div>{label}</div>}
@@ -416,9 +418,11 @@ export const WeathermapEdge = memo(
                 position: 'absolute',
                 transform: `translate(-50%, -100%) translate(${labelX}px, ${labelY - 24}px)`,
                 pointerEvents: 'auto',
-                zIndex: 100,
+                zIndex: Z_INDEX.tooltip,
                 minWidth: 220,
-                whiteSpace: 'nowrap',
+                maxWidth: 'calc(100vw - 24px)',
+                whiteSpace: 'normal',
+                boxSizing: 'border-box',
               }}
             >
               <div style={{ fontWeight: 700, color: COLORS.textWhite, marginBottom: 4, fontSize: FONT.label }}>
