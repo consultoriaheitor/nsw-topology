@@ -115,7 +115,7 @@ sudo apt update
 sudo apt install -y curl unzip
 
 # Build the plugin
-git clone https://github.com/gabrielnsw/nsw-topology.git
+[consultoriaheitor/nsw-topology.git](https://github.com/consultoriaheitor/nsw-topology.git)
 cd nsw-topology
 npm install
 npm run build
@@ -220,7 +220,7 @@ Works best with **Zabbix** through [Alexander Zobnin's plugin](https://github.co
 ## Building from source
 
 ```bash
-git clone https://github.com/gabrielnsw/nsw-topology.git
+[consultoriaheitor/nsw-topology.git](https://github.com/consultoriaheitor/nsw-topology.git)
 cd nsw-topology
 npm install
 npm run dev    # watch mode
