@@ -38,6 +38,7 @@ export const DEFAULT_OPTIONS: TopologyOptions = {
   general: DEFAULT_GENERAL,
   nodes: [],
   connections: [],
+  valueMappings: [],
   appearance: DEFAULT_APPEARANCE,
   colors: DEFAULT_COLORS,
   interaction: DEFAULT_INTERACTION,
@@ -154,6 +155,21 @@ export const REDUCER_OPTIONS = [
   { value: 'max', label: 'Max' },
   { value: 'min', label: 'Min' },
   { value: 'lastNotNull', label: 'Last' },
+];
+
+export const THRESHOLD_OPERATOR_OPTIONS = [
+  { value: 'gt', label: 'Greater than (>)' },
+  { value: 'gte', label: 'Greater or equal (>=)' },
+  { value: 'lt', label: 'Less than (<)' },
+  { value: 'lte', label: 'Less or equal (<=)' },
+  { value: 'eq', label: 'Equal (=)' },
+  { value: 'neq', label: 'Different (!=)' },
+];
+
+export const VALUE_MAPPING_TYPE_OPTIONS = [
+  { value: 'value', label: 'Exact value' },
+  { value: 'range', label: 'Range' },
+  { value: 'regex', label: 'Regex' },
 ];
 
 export const ICON_EMOJI_OPTIONS = [

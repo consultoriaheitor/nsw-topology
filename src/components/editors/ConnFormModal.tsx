@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Modal, Button, Field, Input, Select, UnitPicker } from '@grafana/ui';
-import { NodeConfig, ConnectionConfig, ZabbixHost } from '../../types';
+import { NodeConfig, ConnectionConfig, ZabbixHost, ValueMapping, CustomMetric } from '../../types';
 import { CAPACITY_OPTIONS, LINE_STYLE_OPTIONS } from '../../constants';
 import { COLORS, FONT, SECTION_HEADER } from '../../styles/tokens';
 import { CustomMetricList } from './CustomMetricList';
@@ -23,11 +23,21 @@ interface Props {
   nodes: NodeConfig[];
   hostFieldMap: Record<string, string[]>;
   hosts: Record<string, ZabbixHost>;
+  valueMappings?: ValueMapping[];
   onSave: (c: ConnectionConfig) => void;
   onCancel: () => void;
 }
 
-export const ConnFormModal: React.FC<Props> = ({ conn, pendingConn, nodes, hostFieldMap, hosts, onSave, onCancel }) => {
+export const ConnFormModal: React.FC<Props> = ({
+  conn,
+  pendingConn,
+  nodes,
+  hostFieldMap,
+  hosts,
+  valueMappings = [],
+  onSave,
+  onCancel,
+}) => {
   const [sourceId, setSourceId] = useState(conn?.sourceId || pendingConn?.sourceId || '');
   const [targetId, setTargetId] = useState(conn?.targetId || pendingConn?.targetId || '');
   const [interfaceName, setInterfaceName] = useState(conn?.interfaceName || '');
@@ -39,8 +49,13 @@ export const ConnFormModal: React.FC<Props> = ({ conn, pendingConn, nodes, hostF
   const [downloadField, setDownloadField] = useState(conn?.downloadField || '');
   const [uploadField, setUploadField] = useState(conn?.uploadField || '');
   const [unit, setUnit] = useState(conn?.unit || 'bps');
-  const [customMetrics, setCustomMetrics] = useState(
-    (conn?.customMetrics || []).map((m) => ({ ...m, decimals: m.decimals ?? 1 }))
+  const [customMetrics, setCustomMetrics] = useState<CustomMetric[]>(
+    (conn?.customMetrics || []).map((m) => ({
+      ...m,
+      decimals: m.decimals ?? 1,
+      alertCondition: m.alertCondition || 'gt',
+      valueMappingId: m.valueMappingId || '',
+    }))
   );
 
   const nodeOpts = nodes.map((n) => ({ value: n.id, label: n.name }));
@@ -199,6 +214,7 @@ export const ConnFormModal: React.FC<Props> = ({ conn, pendingConn, nodes, hostF
         metrics={customMetrics}
         onChange={setCustomMetrics}
         availableFields={allFields}
+        valueMappings={valueMappings}
         showIconPicker={true}
       />
 

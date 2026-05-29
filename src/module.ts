@@ -72,6 +72,12 @@ export const plugin = new PanelPlugin<TopologyOptions>(TopologyPanel)
         category: ['Colors'],
       })
       .addBooleanSwitch({
+        path: 'interaction.enableZoom',
+        name: 'Enable Zoom',
+        defaultValue: DEFAULT_INTERACTION.enableZoom,
+        category: ['Interaction'],
+      })
+      .addBooleanSwitch({
         path: 'interaction.enablePan',
         name: 'Enable Pan',
         defaultValue: DEFAULT_INTERACTION.enablePan,

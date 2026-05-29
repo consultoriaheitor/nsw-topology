@@ -24,6 +24,8 @@ export type WeathermapEdgeData = {
   isRed: boolean;
   capacity: number;
   customMetrics?: any[];
+  parallelCount?: number;
+  parallelOffset?: number;
 };
 
 type WeathermapEdgeType = Edge<WeathermapEdgeData, 'weathermap'>;
@@ -39,6 +41,54 @@ const formatAxisValue = (bps: number): string => {
     return `${(bps / 1e3).toFixed(0)}K`;
   }
   return `${bps.toFixed(0)}`;
+};
+
+const getShiftedEdgePoints = (
+  sourceX: number,
+  sourceY: number,
+  targetX: number,
+  targetY: number,
+  offset: number
+) => {
+  if (!offset) {
+    return { sourceX, sourceY, targetX, targetY };
+  }
+
+  const dx = targetX - sourceX;
+  const dy = targetY - sourceY;
+  const length = Math.hypot(dx, dy);
+  if (!length) {
+    return { sourceX, sourceY, targetX, targetY };
+  }
+
+  const normalX = -dy / length;
+  const normalY = dx / length;
+
+  return {
+    sourceX: sourceX + normalX * offset,
+    sourceY: sourceY + normalY * offset,
+    targetX: targetX + normalX * offset,
+    targetY: targetY + normalY * offset,
+  };
+};
+
+const formatEdgeMetricValue = (metric: any): string => {
+  if (metric.displayValue) {
+    return metric.displayValue;
+  }
+  if (metric.unit && metric.unit !== 'none') {
+    const fmt = getValueFormat(metric.unit);
+    return formattedValueToString(fmt(metric.computedValue, metric.decimals ?? 1));
+  }
+  return metric.computedValue.toFixed(metric.decimals ?? 1);
+};
+
+const getEdgeMetricColor = (metric: any): string => {
+  if (metric.displayColor) {
+    return metric.displayColor;
+  }
+  const alerting = metric.alerting ?? metric.computedValue > metric.alertThreshold;
+  return alerting ? metric.alertColor || COLORS.danger : COLORS.textWhite;
 };
 
 const Sparkline: React.FC<{ data: TrafficHistoryPoint[]; height: number; capacity: number }> = ({
@@ -211,12 +261,14 @@ export const WeathermapEdge = memo(
     const animated = data?.animated ?? false;
     const showTraffic = data?.showTraffic ?? false;
     const isRed = data?.isRed ?? false;
+    const parallelOffset = data?.parallelOffset || 0;
+    const shifted = getShiftedEdgePoints(sourceX, sourceY, targetX, targetY, parallelOffset);
 
     const [edgePath, labelX, labelY] = getBezierPath({
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
+      sourceX: shifted.sourceX,
+      sourceY: shifted.sourceY,
+      targetX: shifted.targetX,
+      targetY: shifted.targetY,
       sourcePosition,
       targetPosition,
     });
@@ -311,7 +363,7 @@ export const WeathermapEdge = memo(
                     <div
                       key={idx}
                       style={{
-                        color: m.computedValue > m.alertThreshold ? m.alertColor || COLORS.danger : COLORS.textWhite,
+                        color: getEdgeMetricColor(m),
                         fontSize: FONT.sm,
                         fontWeight: 500,
                         display: 'flex',
@@ -320,13 +372,7 @@ export const WeathermapEdge = memo(
                       }}
                     >
                       {m.icon && <span>{m.icon}</span>}
-                      {(() => {
-                        if (m.unit && m.unit !== 'none') {
-                          const fmt = getValueFormat(m.unit);
-                          return formattedValueToString(fmt(m.computedValue, m.decimals ?? 1));
-                        }
-                        return m.computedValue.toFixed(m.decimals ?? 1);
-                      })()}
+                      {formatEdgeMetricValue(m)}
                     </div>
                   )
               )}
@@ -397,18 +443,11 @@ export const WeathermapEdge = memo(
                           </span>
                           <span
                             style={{
-                              color:
-                                m.computedValue > m.alertThreshold ? m.alertColor || COLORS.danger : COLORS.textWhite,
+                              color: getEdgeMetricColor(m),
                               fontWeight: 600,
                             }}
                           >
-                            {(() => {
-                              if (m.unit && m.unit !== 'none') {
-                                const fmt = getValueFormat(m.unit);
-                                return formattedValueToString(fmt(m.computedValue, m.decimals ?? 1));
-                              }
-                              return m.computedValue.toFixed(m.decimals ?? 1);
-                            })()}
+                            {formatEdgeMetricValue(m)}
                           </span>
                         </div>
                       )

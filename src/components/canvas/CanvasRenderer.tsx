@@ -1,5 +1,4 @@
 import React, { useMemo, useCallback, useEffect, useState, useRef } from 'react';
-import { getValueFormat, formattedValueToString } from '@grafana/data';
 import {
   ReactFlow,
   Background,
@@ -18,9 +17,18 @@ import {
   type NodeDimensionChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import { NodeConfig, ConnectionConfig, AppearanceConfig, ColorsConfig, MetricConfig, ZabbixHost } from '../../types';
+import {
+  NodeConfig,
+  ConnectionConfig,
+  AppearanceConfig,
+  ColorsConfig,
+  MetricConfig,
+  ZabbixHost,
+  ValueMapping,
+} from '../../types';
 import { getUtilizationPercent, getUtilizationColor, getUtilizationThickness } from '../../engine/weathermap';
 import { formatTrafficValue, evaluateCustomMetric } from '../../data/parser';
+import { getMappedMetricDisplay, isMetricAlerting } from '../../data/customMetrics';
 import { getTrafficHistory } from '../../data/trafficHistory';
 import {
   DEFAULT_NODE_WIDTH,
@@ -56,6 +64,7 @@ interface Props {
   hosts: Record<string, ZabbixHost>;
   hostNames: string[];
   hostFieldMap: Record<string, string[]>;
+  valueMappings: ValueMapping[];
   dataSeries: any[];
   width: number;
   height: number;
@@ -85,6 +94,7 @@ export const CanvasRenderer: React.FC<Props> = ({
   hosts,
   hostNames,
   hostFieldMap,
+  valueMappings,
   dataSeries,
   width,
   height,
@@ -199,7 +209,7 @@ export const CanvasRenderer: React.FC<Props> = ({
         for (const m of node.customMetrics) {
           if (m.enabled) {
             const val = evaluateCustomMetric(m, node.hostName, hostFieldMap, hosts);
-            if (val !== null && val > m.alertThreshold) {
+            if (val !== null && isMetricAlerting(val, m)) {
               return resolveGrafanaColor(m.alertColor || '') || resolvedColors.alert;
             }
           }
@@ -275,19 +285,14 @@ export const CanvasRenderer: React.FC<Props> = ({
           if (m.enabled) {
             const val = evaluateCustomMetric(m, node.hostName, hostFieldMap, hosts);
             if (val !== null) {
-              const decimals = m.decimals ?? 1;
-              const alerting = val > m.alertThreshold;
-              let formattedVal: string;
-              if (m.unit && m.unit !== 'none') {
-                const fmt = getValueFormat(m.unit);
-                formattedVal = formattedValueToString(fmt(val, decimals));
-              } else {
-                formattedVal = val.toFixed(decimals);
-              }
+              const alerting = isMetricAlerting(val, m);
+              const display = getMappedMetricDisplay(m, val, valueMappings);
               result.push({
                 label: m.name,
-                value: formattedVal,
-                color: alerting ? m.alertColor || resolvedColors.alert : resolvedColors.online,
+                value: display.text,
+                color: alerting
+                  ? resolveGrafanaColor(m.alertColor || '') || resolvedColors.alert
+                  : display.color || resolvedColors.online,
                 alerting,
               });
             }
@@ -297,7 +302,7 @@ export const CanvasRenderer: React.FC<Props> = ({
 
       return result;
     },
-    [getMetricValue, resolvedColors, hostFieldMap, hosts]
+    [getMetricValue, resolvedColors, hostFieldMap, hosts, valueMappings]
   );
 
   const getUptimeValue = useCallback(
@@ -378,11 +383,12 @@ export const CanvasRenderer: React.FC<Props> = ({
         if (status === 'online' && nodeHasZeroTraffic(node.id)) {
           statusColor = resolvedColors.alert;
         }
-        const isMatch = searchQuery && node.name.toLowerCase().includes(searchQuery.toLowerCase());
+        const searchTarget = [node.name, node.hostName, node.ip].filter(Boolean).join(' ').toLowerCase();
+        const isMatch = searchQuery.trim() && searchTarget.includes(searchQuery.trim().toLowerCase());
         return {
           id: node.id,
           type: 'topology' as const,
-          position: { x: node.positionX || 100, y: node.positionY || 100 },
+          position: { x: node.positionX ?? 100, y: node.positionY ?? 100 },
           style: {
             width: node.width || DEFAULT_NODE_WIDTH,
             height: node.height || DEFAULT_NODE_HEIGHT,
@@ -421,8 +427,21 @@ export const CanvasRenderer: React.FC<Props> = ({
   );
 
   const initialEdges: WeathermapEdgeType[] = useMemo(
-    () =>
-      connections.map((conn) => {
+    () => {
+      const parallelGroups = new Map<string, ConnectionConfig[]>();
+      for (const conn of connections) {
+        const key = [conn.sourceId, conn.targetId].sort().join('::');
+        parallelGroups.set(key, [...(parallelGroups.get(key) || []), conn]);
+      }
+
+      const parallelMeta = new Map<string, { index: number; count: number }>();
+      for (const group of parallelGroups.values()) {
+        group.forEach((conn, index) => {
+          parallelMeta.set(conn.id, { index, count: group.length });
+        });
+      }
+
+      return connections.map((conn) => {
         const srcNode = nodeConfigs.find((n) => n.id === conn.sourceId);
         const tgtNode = nodeConfigs.find((n) => n.id === conn.targetId);
         const {
@@ -446,14 +465,24 @@ export const CanvasRenderer: React.FC<Props> = ({
             if (m.enabled) {
               const val = evaluateCustomMetric(m, srcNode?.hostName || srcNode?.name || '', hostFieldMap, hosts);
               if (val !== null) {
+                const alerting = isMetricAlerting(val, m);
+                const display = getMappedMetricDisplay(m, val, valueMappings);
                 evaluatedMetrics.push({
                   ...m,
                   computedValue: val,
+                  displayValue: display.text,
+                  displayColor: alerting
+                    ? resolveGrafanaColor(m.alertColor || '') || COLORS.danger
+                    : display.color || COLORS.textWhite,
+                  alerting,
                 });
               }
             }
           }
         }
+
+        const parallel = parallelMeta.get(conn.id) || { index: 0, count: 1 };
+        const parallelOffset = (parallel.index - (parallel.count - 1) / 2) * 28;
 
         return {
           id: conn.id,
@@ -481,10 +510,13 @@ export const CanvasRenderer: React.FC<Props> = ({
             isRed: edgeIsRed,
             capacity: conn.capacity || 1000,
             customMetrics: evaluatedMetrics,
+            parallelCount: parallel.count,
+            parallelOffset,
           },
         };
-      }),
-    [connections, nodeConfigs, getEdgeTrafficState, resolvedColors, dataSeries, hostFieldMap, hosts]
+      });
+    },
+    [connections, nodeConfigs, getEdgeTrafficState, resolvedColors, dataSeries, hostFieldMap, hosts, valueMappings]
   );
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(initialNodes);
@@ -805,6 +837,7 @@ export const CanvasRenderer: React.FC<Props> = ({
           hostNames={hostNames}
           usedHostNames={usedHostNames}
           hostFieldMap={hostFieldMap}
+          valueMappings={valueMappings}
           onSave={handleSaveNode}
           onCancel={() => {
             setShowNodeModal(false);
@@ -820,6 +853,7 @@ export const CanvasRenderer: React.FC<Props> = ({
           nodes={nodeConfigs}
           hostFieldMap={hostFieldMap}
           hosts={hosts}
+          valueMappings={valueMappings}
           onSave={handleSaveConn}
           onCancel={() => {
             setShowConnModal(false);

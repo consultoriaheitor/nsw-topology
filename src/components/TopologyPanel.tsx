@@ -8,6 +8,7 @@ import { CanvasRenderer } from './canvas/CanvasRenderer';
 import { TopologySidebar } from './sidebar/TopologySidebar';
 import { WelcomeModal } from './WelcomeModal';
 import { BackupModal } from './editors/BackupModal';
+import { ValueMappingsModal } from './editors/ValueMappingsModal';
 
 type Props = PanelProps<TopologyOptions>;
 
@@ -28,13 +29,14 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
     [options.nodes]
   );
   const connections = options.connections || [];
+  const valueMappings = options.valueMappings || [];
   const parsedData = useMemo(() => parseDataFrames(data.series), [data.series]);
 
-  const [zoomEnabled, setZoomEnabled] = useState(interaction.enableZoom);
   const [searchOpen, setSearchOpen] = useState(false);
   const [addNodeTrigger, setAddNodeTrigger] = useState(0);
   const [showWelcome, setShowWelcome] = useState(interaction.showWelcome !== false);
   const [showBackup, setShowBackup] = useState(false);
+  const [showValueMappings, setShowValueMappings] = useState(false);
   const reactFlow = useReactFlow();
 
   const title = options.general?.title || '';
@@ -106,7 +108,12 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
     reactFlow.fitView({ padding: 0.2, duration: 300 });
   }, [reactFlow]);
 
-  const handleToggleZoom = useCallback(() => setZoomEnabled((prev) => !prev), []);
+  const handleToggleZoom = useCallback(() => {
+    onOptionsChange({
+      ...options,
+      interaction: { ...interaction, enableZoom: !interaction.enableZoom },
+    });
+  }, [options, interaction, onOptionsChange]);
 
   const handleCloseWelcome = useCallback(() => {
     setShowWelcome(false);
@@ -117,7 +124,9 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
   }, [options, interaction, onOptionsChange]);
 
   const titleBarHeight = title ? 40 : 0;
-  const canvasHeight = height - titleBarHeight;
+  const sidebarWidth = 48;
+  const canvasWidth = Math.max(width - sidebarWidth, 0);
+  const canvasHeight = Math.max(height - titleBarHeight, 0);
 
   return (
     <div style={{ position: 'relative', width, height, overflow: 'hidden', fontFamily: 'Inter, sans-serif' }}>
@@ -149,12 +158,13 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
           onCenterMap={handleCenterMap}
           onToggleZoom={handleToggleZoom}
           onToggleSearch={() => setSearchOpen((prev) => !prev)}
+          onValueMappings={() => setShowValueMappings(true)}
           onBackup={() => setShowBackup(true)}
-          zoomEnabled={zoomEnabled}
+          zoomEnabled={interaction.enableZoom}
           searchOpen={searchOpen}
           showDonateHeart={appearance.showDonateCard === false}
         />
-        <div style={{ marginLeft: 48, width: width - 48, height: canvasHeight }}>
+        <div style={{ marginLeft: sidebarWidth, width: canvasWidth, height: canvasHeight }}>
           <CanvasRenderer
             nodes={nodes}
             connections={connections}
@@ -163,10 +173,11 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
             hosts={parsedData.hosts}
             hostNames={parsedData.hostNames}
             hostFieldMap={parsedData.hostFieldMap}
+            valueMappings={valueMappings}
             dataSeries={data.series}
-            width={width - 48}
+            width={canvasWidth}
             height={canvasHeight}
-            enableZoom={zoomEnabled}
+            enableZoom={interaction.enableZoom}
             enablePan={interaction.enablePan}
             showMiniMap={interaction.showMiniMap}
             showLegend={interaction.showLegend}
@@ -190,6 +201,13 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
           options={options}
           onRestore={(patch) => updateOptions(patch)}
           onClose={() => setShowBackup(false)}
+        />
+      )}
+      {showValueMappings && (
+        <ValueMappingsModal
+          mappings={valueMappings}
+          onSave={(mappings) => updateOptions({ valueMappings: mappings })}
+          onClose={() => setShowValueMappings(false)}
         />
       )}
     </div>

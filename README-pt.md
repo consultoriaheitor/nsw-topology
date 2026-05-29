@@ -105,6 +105,44 @@ sudo grafana cli \
 sudo systemctl restart grafana-server
 ```
 
+### Debian
+
+Use estes passos em Debian ou distribuicoes baseadas em Debian quando quiser instalar um build local deste repositorio.
+
+```bash
+# No servidor onde o Grafana roda
+sudo apt update
+sudo apt install -y curl unzip
+
+# Gere o build do plugin
+git clone https://github.com/gabrielnsw/nsw-topology.git
+cd nsw-topology
+npm install
+npm run build
+
+# Instale o build gerado no diretorio de plugins do Grafana
+sudo mkdir -p /var/lib/grafana/plugins/gabrielnsw-nswtopology-panel
+sudo cp -a dist/. /var/lib/grafana/plugins/gabrielnsw-nswtopology-panel/
+sudo chown -R grafana:grafana /var/lib/grafana/plugins/gabrielnsw-nswtopology-panel
+```
+
+Como o plugin e customizado/nao assinado, libere o ID no arquivo `/etc/grafana/grafana.ini`:
+
+```ini
+[plugins]
+allow_loading_unsigned_plugins = gabrielnsw-nswtopology-panel
+```
+
+Reinicie e confira o status:
+
+```bash
+sudo systemctl restart grafana-server
+sudo systemctl status grafana-server --no-pager
+sudo journalctl -u grafana-server -n 80 --no-pager
+```
+
+Depois abra o Grafana, crie/edite um painel e selecione **NSW Topology** na lista de visualizacoes.
+
 ### Instalação Manual
 
 - Baixe a versão mais recente na nossa [página de releases do GitHub](https://github.com/gabrielnsw/nsw-topology/releases).

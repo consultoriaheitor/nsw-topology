@@ -3,6 +3,7 @@ export interface TopologyOptions {
   general: GeneralConfig;
   nodes: NodeConfig[];
   connections: ConnectionConfig[];
+  valueMappings?: ValueMapping[];
   appearance: AppearanceConfig;
   colors: ColorsConfig;
   interaction: InteractionConfig;
@@ -11,6 +12,27 @@ export interface TopologyOptions {
 export interface GeneralConfig {
   title: string;
   titleSize: number;
+}
+
+export type ThresholdOperator = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'neq';
+
+export type ValueMappingType = 'value' | 'range' | 'regex';
+
+export interface ValueMappingEntry {
+  id: string;
+  value?: string;
+  from?: number;
+  to?: number;
+  pattern?: string;
+  text: string;
+  color?: string;
+}
+
+export interface ValueMapping {
+  id: string;
+  name: string;
+  type: ValueMappingType;
+  entries: ValueMappingEntry[];
 }
 
 // custom metric config — supports regex matching, thresholds, grafana units etc
@@ -24,8 +46,10 @@ export interface CustomMetric {
   unit: string;
   enabled: boolean;
   alertThreshold: number;
+  alertCondition?: ThresholdOperator;
   alertColor: string;
   decimals: number;
+  valueMappingId?: string;
   isDefault?: boolean;
 }
 
