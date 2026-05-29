@@ -454,7 +454,7 @@ export const CanvasRenderer: React.FC<Props> = ({
         const srcNode = nodeConfigs.find((n) => n.id === conn.sourceId);
         const tgtNode = nodeConfigs.find((n) => n.id === conn.targetId);
         const {
-          color: edgeColor,
+          color: trafficEdgeColor,
           width: edgeWidth,
           dlVal,
           ulVal,
@@ -465,10 +465,10 @@ export const CanvasRenderer: React.FC<Props> = ({
         const dlDisplay = dlVal > 0 ? formatTrafficValue(dlVal) : '';
         const ulDisplay = ulVal > 0 ? formatTrafficValue(ulVal) : '';
 
-        const edgeIsRed = edgeColor === resolvedColors.offline || edgeColor === COLORS.red;
         const trafficHistory = getTrafficHistory(dataSeries, srcNode, conn);
 
         const evaluatedMetrics = [];
+        let customMetricAlertColor = '';
         if (conn.customMetrics) {
           for (const m of conn.customMetrics) {
             if (m.enabled) {
@@ -476,13 +476,15 @@ export const CanvasRenderer: React.FC<Props> = ({
               if (val !== null) {
                 const display = getMappedMetricDisplay(m, val, valueMappings);
                 const alerting = display.alertState ? display.alertState !== 'none' : isMetricAlerting(val, m);
+                const alertColor = display.color || resolveGrafanaColor(m.alertColor || '') || resolvedColors.alert;
+                if (alerting && !customMetricAlertColor) {
+                  customMetricAlertColor = alertColor;
+                }
                 evaluatedMetrics.push({
                   ...m,
                   computedValue: val,
                   displayValue: display.text,
-                  displayColor: alerting
-                    ? display.color || resolveGrafanaColor(m.alertColor || '') || COLORS.danger
-                    : display.color || COLORS.textWhite,
+                  displayColor: alerting ? alertColor : display.color || COLORS.textWhite,
                   alertState: display.alertState,
                   alerting,
                 });
@@ -490,6 +492,10 @@ export const CanvasRenderer: React.FC<Props> = ({
             }
           }
         }
+
+        const isOffline = srcStatus === 'offline' || tgtStatus === 'offline';
+        const edgeColor = isOffline ? resolvedColors.offline : customMetricAlertColor || trafficEdgeColor;
+        const edgeIsRed = edgeColor === resolvedColors.offline || edgeColor === COLORS.red;
 
         const parallel = parallelMeta.get(conn.id) || { index: 0, count: 1 };
         const dynamicOffset = (parallel.index - (parallel.count - 1) / 2) * 28;
