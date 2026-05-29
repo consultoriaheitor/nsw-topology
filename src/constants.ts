@@ -17,7 +17,6 @@ export const DEFAULT_APPEARANCE: AppearanceConfig = {
   showGrid: true,
   gridSize: 20,
   gridColor: '#1e2130',
-  showDonateCard: true,
 };
 
 export const DEFAULT_COLORS: ColorsConfig = {
@@ -31,7 +30,6 @@ export const DEFAULT_INTERACTION: InteractionConfig = {
   enablePan: true,
   showMiniMap: true,
   showLegend: true,
-  showWelcome: true,
 };
 
 export const DEFAULT_OPTIONS: TopologyOptions = {

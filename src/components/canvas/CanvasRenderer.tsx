@@ -70,6 +70,7 @@ interface Props {
   dataSeries: any[];
   width: number;
   height: number;
+  isEditing: boolean;
   enableZoom: boolean;
   enablePan: boolean;
   showMiniMap: boolean;
@@ -100,6 +101,7 @@ export const CanvasRenderer: React.FC<Props> = ({
   dataSeries,
   width,
   height,
+  isEditing,
   enableZoom,
   enablePan,
   showMiniMap,
@@ -151,6 +153,20 @@ export const CanvasRenderer: React.FC<Props> = ({
       });
     }
   }, [addNodeTrigger]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      queueMicrotask(() => {
+        setCtxMenu(null);
+        setEditingNode(null);
+        setShowNodeModal(false);
+        setEditingConn(null);
+        setShowConnModal(false);
+        setPendingConn(null);
+        setDeleteTarget(null);
+      });
+    }
+  }, [isEditing]);
 
   const getMetricValue = useCallback(
     (node: NodeConfig, field: string): number | null => {
@@ -419,6 +435,7 @@ export const CanvasRenderer: React.FC<Props> = ({
             iconSize: node.iconSize || DEFAULT_ICON_SIZE,
             width: node.width || DEFAULT_NODE_WIDTH,
             height: node.height || DEFAULT_NODE_HEIGHT,
+            isEditing,
           },
         };
       }),
@@ -432,6 +449,7 @@ export const CanvasRenderer: React.FC<Props> = ({
       nodeHasZeroTraffic,
       resolvedColors,
       searchQuery,
+      isEditing,
     ]
   );
 
@@ -548,6 +566,11 @@ export const CanvasRenderer: React.FC<Props> = ({
   const handleNodesChange: OnNodesChange<TopologyNodeType> = useCallback(
     (changes) => {
       onNodesChange(changes);
+
+      if (!isEditing) {
+        return;
+      }
+
       for (const c of changes) {
         if (c.type === 'position') {
           const p = c as NodePositionChange;
@@ -569,12 +592,21 @@ export const CanvasRenderer: React.FC<Props> = ({
         }
       }
     },
-    [onNodesChange, onNodePositionChange, onNodeResize, appearance.showGrid, appearance.gridSize]
+    [isEditing, onNodesChange, onNodePositionChange, onNodeResize, appearance.showGrid, appearance.gridSize]
   );
 
-  const handleEdgesChange: OnEdgesChange<WeathermapEdgeType> = useCallback((c) => onEdgesChange(c), [onEdgesChange]);
+  const handleEdgesChange: OnEdgesChange<WeathermapEdgeType> = useCallback(
+    (c) => {
+      onEdgesChange(c);
+    },
+    [onEdgesChange]
+  );
 
   const handleConnect: OnConnect = useCallback((params) => {
+    if (!isEditing) {
+      return;
+    }
+
     if (params.source && params.target && params.source !== params.target) {
       setPendingConn({
         sourceId: params.source,
@@ -585,19 +617,27 @@ export const CanvasRenderer: React.FC<Props> = ({
       setEditingConn(null);
       setShowConnModal(true);
     }
-  }, []);
+  }, [isEditing]);
 
   const handleNodeContextMenu = useCallback((e: React.MouseEvent, node: TopologyNodeType) => {
+    if (!isEditing) {
+      return;
+    }
+
     e.preventDefault();
     const b = containerRef.current?.getBoundingClientRect();
     setCtxMenu({ type: 'node', id: node.id, x: e.clientX - (b?.left || 0), y: e.clientY - (b?.top || 0) });
-  }, []);
+  }, [isEditing]);
 
   const handleEdgeContextMenu = useCallback((e: React.MouseEvent, edge: WeathermapEdgeType) => {
+    if (!isEditing) {
+      return;
+    }
+
     e.preventDefault();
     const b = containerRef.current?.getBoundingClientRect();
     setCtxMenu({ type: 'edge', id: edge.id, x: e.clientX - (b?.left || 0), y: e.clientY - (b?.top || 0) });
-  }, []);
+  }, [isEditing]);
 
   const handlePaneClick = useCallback(() => {
     setCtxMenu(null);
@@ -712,6 +752,13 @@ export const CanvasRenderer: React.FC<Props> = ({
         onPaneClick={handlePaneClick}
         connectionLineComponent={FloatingConnectionLine}
         connectionMode={ConnectionMode.Loose}
+        nodesDraggable={isEditing}
+        nodesConnectable={isEditing}
+        nodesFocusable={isEditing}
+        edgesFocusable={isEditing}
+        edgesReconnectable={isEditing}
+        elementsSelectable={isEditing}
+        selectNodesOnDrag={isEditing}
         zoomOnScroll={enableZoom}
         zoomOnPinch={enableZoom}
         zoomOnDoubleClick={false}
@@ -777,63 +824,6 @@ export const CanvasRenderer: React.FC<Props> = ({
             </div>
           </Panel>
         )}
-        {appearance.showDonateCard !== false && (
-          <Panel position="top-left">
-            <div
-              style={{
-                background: COLORS.surfaceLight,
-                backdropFilter: BLUR,
-                border: `1px solid ${COLORS.border}`,
-                borderRadius: RADIUS.large,
-                padding: '10px 14px',
-                fontSize: 10,
-                color: COLORS.textMuted,
-                textAlign: 'center',
-                maxWidth: 200,
-              }}
-            >
-              <div style={{ fontSize: FONT.body, fontWeight: 600, color: COLORS.textSecondary, marginBottom: 4 }}>
-                NSW Topology by{' '}
-                <a
-                  href="https://github.com/gabrielnsw"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ color: COLORS.accentLight, textDecoration: 'none' }}
-                >
-                  @gabrielnsw
-                </a>
-              </div>
-              <div style={{ marginBottom: 4 }}>Thank you for being part of this!</div>
-              <div style={{ marginBottom: 8 }}>Any donation is welcome</div>
-              <a
-                href="https://www.paypal.com/donate/?business=Z9USFAAMBJ29S&no_recurring=0&item_name=Developing+the+Network+Topology+plugin+for+Grafana+to+solve+real+monitoring+issues.+Help+me+keep+the+project+evolving%21&currency_code=BRL"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="nsw-donate-btn"
-                style={{
-                  display: 'inline-block',
-                  padding: '5px 16px',
-                  fontSize: FONT.body,
-                  fontWeight: 700,
-                  color: COLORS.textWhite,
-                  background: `linear-gradient(135deg, ${COLORS.warning}, ${COLORS.red})`,
-                  borderRadius: RADIUS.medium,
-                  textDecoration: 'none',
-                  cursor: 'pointer',
-                  animation: 'nswGlow 2s ease-in-out infinite',
-                }}
-              >
-                ❤️ Donate
-              </a>
-            </div>
-          </Panel>
-        )}
-        <style>{`
-          @keyframes nswGlow {
-            0%, 100% { box-shadow: 0 0 8px rgba(245,158,11,0.3); }
-            50% { box-shadow: 0 0 18px rgba(245,158,11,0.6), 0 0 30px rgba(239,68,68,0.3); }
-          }
-        `}</style>
         {searchOpen && (
           <Panel position="top-center">
             <SearchBar query={searchQuery} onChange={setSearchQuery} />
