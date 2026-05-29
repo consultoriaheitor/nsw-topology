@@ -19,6 +19,7 @@ export type ThresholdOperator = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'neq';
 export type ValueMappingType = 'value' | 'range' | 'regex';
 export type ValueMappingAlertState = 'none' | 'warning' | 'alert';
 export type ConnectionLineMode = 'dynamic' | 'custom';
+export type NodeMode = 'monitored' | 'static';
 
 export interface ValueMappingEntry {
   id: string;
@@ -68,7 +69,9 @@ export interface MetricConfig {
 export interface NodeConfig {
   id: string;
   name: string;
+  nodeMode?: NodeMode;
   hostName: string;
+  metricHostName?: string;
   icon: string;
   ip: string;
   positionX: number;

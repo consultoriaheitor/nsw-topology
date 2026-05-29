@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Modal, Button, Field, Input, Select, ColorPicker } from '@grafana/ui';
-import { NodeConfig, CustomMetric, ValueMapping } from '../../types';
+import { NodeConfig, CustomMetric, ValueMapping, NodeMode } from '../../types';
 import { CustomMetricList } from './CustomMetricList';
 import {
   ICON_SIZE_OPTIONS,
@@ -13,6 +13,7 @@ import {
   DEFAULT_TEXT_SIZE,
   DEFAULT_ICON_SIZE,
   METRIC_PATTERNS,
+  NODE_MODE_OPTIONS,
   autoDetectField,
 } from '../../constants';
 import { searchIcons, getIconDataUri } from '../icons';
@@ -39,7 +40,9 @@ export const NodeFormModal: React.FC<Props> = ({
   onCancel,
 }) => {
   const [name, setName] = useState(node?.name || '');
+  const [nodeMode, setNodeMode] = useState<NodeMode>(node?.nodeMode || 'monitored');
   const [hostName, setHostName] = useState(node?.hostName || '');
+  const [metricHostName, setMetricHostName] = useState(node?.metricHostName || node?.hostName || '');
   const [ip, setIp] = useState(node?.ip || '');
   const [icon, setIcon] = useState(node?.icon || 'server');
   const [iconSearch, setIconSearch] = useState('');
@@ -61,7 +64,7 @@ export const NodeFormModal: React.FC<Props> = ({
       }));
     }
 
-    const fields = hostFieldMap[hostName] || [];
+    const fields = hostFieldMap[node?.metricHostName || node?.hostName || ''] || [];
 
     const defaults: CustomMetric[] = [
       {
@@ -145,8 +148,11 @@ export const NodeFormModal: React.FC<Props> = ({
   });
 
   const availableHosts = useMemo(() => {
+    if (nodeMode === 'static') {
+      return hostNames;
+    }
     return hostNames.filter((h) => !usedHostNames.includes(h) || h === node?.hostName);
-  }, [hostNames, usedHostNames, node]);
+  }, [hostNames, usedHostNames, node, nodeMode]);
 
   const hostOpts = useMemo(
     () => [{ value: '', label: 'Select...' }, ...availableHosts.map((h) => ({ value: h, label: h }))],
@@ -154,14 +160,16 @@ export const NodeFormModal: React.FC<Props> = ({
   );
 
   const fieldOpts = useMemo(() => {
-    const items = hostFieldMap[hostName] || [];
+    const metricSource = nodeMode === 'static' ? metricHostName : hostName;
+    const items = hostFieldMap[metricSource] || [];
     return [{ value: '', label: 'Select...' }, ...items.map((f) => ({ value: f, label: f }))];
-  }, [hostFieldMap, hostName]);
+  }, [hostFieldMap, hostName, metricHostName, nodeMode]);
 
   const filteredIcons = useMemo(() => searchIcons(iconSearch), [iconSearch]);
 
   const handleHostChange = (newHost: string) => {
     setHostName(newHost);
+    setMetricHostName(newHost);
     if (!name || name === hostName) {
       setName(newHost);
     }
@@ -170,11 +178,22 @@ export const NodeFormModal: React.FC<Props> = ({
     setUptimeField(autoDetectField(fields, METRIC_PATTERNS.uptime));
   };
 
+  const handleMetricHostChange = (newHost: string) => {
+    setMetricHostName(newHost);
+    const fields = hostFieldMap[newHost] || [];
+    setPingField(autoDetectField(fields, METRIC_PATTERNS.ping));
+    setUptimeField(autoDetectField(fields, METRIC_PATTERNS.uptime));
+  };
+
   const save = () => {
+    const savedHostName = nodeMode === 'static' ? node?.hostName || `static-${Date.now()}` : hostName;
+
     onSave({
       id: node?.id || `node-${Date.now()}`,
-      name: name || hostName,
-      hostName,
+      name: name || hostName || metricHostName,
+      nodeMode,
+      hostName: savedHostName,
+      metricHostName: nodeMode === 'static' ? metricHostName : undefined,
       ip,
       icon,
       positionX: node?.positionX ?? 200,
@@ -200,14 +219,34 @@ export const NodeFormModal: React.FC<Props> = ({
   return (
     <Modal title={`${node ? '✏️' : '➕'} ${node ? 'Edit' : 'Create Node'}`} isOpen={true} onDismiss={onCancel}>
       <div style={SECTION_HEADER}>📡 Host</div>
-      <Field label="Host">
-        <Select options={hostOpts} value={hostName} onChange={(v) => handleHostChange(v.value || '')} />
+      <Field label="Node Type">
+        <Select
+          options={NODE_MODE_OPTIONS}
+          value={nodeMode}
+          onChange={(v) => setNodeMode((v.value as NodeMode) || 'monitored')}
+        />
       </Field>
-      {hostName && (
+      {nodeMode === 'monitored' ? (
+        <Field label="Host">
+          <Select options={hostOpts} value={hostName} onChange={(v) => handleHostChange(v.value || '')} />
+        </Field>
+      ) : (
         <>
-          <Field label="Node Name">
-            <Input value={name} onChange={(e) => setName(e.currentTarget.value)} />
+          <Field label="Static Node Name">
+            <Input value={name} onChange={(e) => setName(e.currentTarget.value)} placeholder="Carrier / ISP / Cloud" />
           </Field>
+          <Field label="Metric Source Host">
+            <Select options={hostOpts} value={metricHostName} onChange={(v) => handleMetricHostChange(v.value || '')} />
+          </Field>
+        </>
+      )}
+      {((nodeMode === 'monitored' && hostName) || (nodeMode === 'static' && metricHostName && name)) && (
+        <>
+          {nodeMode === 'monitored' && (
+            <Field label="Node Name">
+              <Input value={name} onChange={(e) => setName(e.currentTarget.value)} />
+            </Field>
+          )}
           <Field label="IP Address">
             <Input value={ip} onChange={(e) => setIp(e.currentTarget.value)} placeholder="192.168.0.1" />
           </Field>
@@ -306,7 +345,11 @@ export const NodeFormModal: React.FC<Props> = ({
         <Button variant="secondary" onClick={onCancel}>
           Cancel
         </Button>
-        <Button variant="primary" onClick={save} disabled={!hostName}>
+        <Button
+          variant="primary"
+          onClick={save}
+          disabled={nodeMode === 'static' ? !name || !metricHostName : !hostName}
+        >
           Save
         </Button>
       </Modal.ButtonRow>

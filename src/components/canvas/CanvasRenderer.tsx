@@ -56,6 +56,8 @@ type WeathermapEdgeType = Edge<WeathermapEdgeData>;
 const nodeTypes = { topology: TopologyNode };
 const edgeTypes = { weathermap: WeathermapEdge };
 
+const getMetricHostName = (node?: NodeConfig): string => node?.metricHostName || node?.hostName || node?.name || '';
+
 interface Props {
   nodes: NodeConfig[];
   connections: ConnectionConfig[];
@@ -155,7 +157,8 @@ export const CanvasRenderer: React.FC<Props> = ({
       if (!field) {
         return null;
       }
-      const host = hosts[node.hostName] || hosts[node.name];
+      const metricHostName = getMetricHostName(node);
+      const host = hosts[metricHostName] || hosts[node.name];
       if (!host) {
         return null;
       }
@@ -208,7 +211,7 @@ export const CanvasRenderer: React.FC<Props> = ({
       if (node.customMetrics) {
         for (const m of node.customMetrics) {
           if (m.enabled) {
-            const val = evaluateCustomMetric(m, node.hostName, hostFieldMap, hosts);
+            const val = evaluateCustomMetric(m, getMetricHostName(node), hostFieldMap, hosts);
             if (val !== null) {
               const display = getMappedMetricDisplay(m, val, valueMappings);
               if (display.alertState && display.alertState !== 'none') {
@@ -240,7 +243,7 @@ export const CanvasRenderer: React.FC<Props> = ({
         if (!srcNode) {
           return false;
         }
-        const host = hosts[srcNode.hostName] || hosts[srcNode.name];
+        const host = hosts[getMetricHostName(srcNode)] || hosts[srcNode.name];
         if (!host) {
           return false;
         }
@@ -289,7 +292,7 @@ export const CanvasRenderer: React.FC<Props> = ({
       if (node.customMetrics) {
         for (const m of node.customMetrics) {
           if (m.enabled) {
-            const val = evaluateCustomMetric(m, node.hostName, hostFieldMap, hosts);
+            const val = evaluateCustomMetric(m, getMetricHostName(node), hostFieldMap, hosts);
             if (val !== null) {
               const display = getMappedMetricDisplay(m, val, valueMappings);
               const alerting = display.alertState ? display.alertState !== 'none' : isMetricAlerting(val, m);
@@ -340,7 +343,7 @@ export const CanvasRenderer: React.FC<Props> = ({
       if (srcStatus === 'offline' || tgtStatus === 'offline') {
         color = resolvedColors.offline;
       } else if (srcNode && conn.downloadField) {
-        const host = hosts[srcNode.hostName] || hosts[srcNode.name];
+        const host = hosts[getMetricHostName(srcNode)] || hosts[srcNode.name];
         if (host) {
           dlVal = typeof host.items[conn.downloadField] === 'number' ? (host.items[conn.downloadField] as number) : 0;
           if (conn.uploadField) {
@@ -389,7 +392,7 @@ export const CanvasRenderer: React.FC<Props> = ({
         if (status === 'online' && nodeHasZeroTraffic(node.id)) {
           statusColor = resolvedColors.alert;
         }
-        const searchTarget = [node.name, node.hostName, node.ip].filter(Boolean).join(' ').toLowerCase();
+        const searchTarget = [node.name, node.hostName, node.metricHostName, node.ip].filter(Boolean).join(' ').toLowerCase();
         const isMatch = searchQuery.trim() && searchTarget.includes(searchQuery.trim().toLowerCase());
         return {
           id: node.id,
@@ -469,7 +472,7 @@ export const CanvasRenderer: React.FC<Props> = ({
         if (conn.customMetrics) {
           for (const m of conn.customMetrics) {
             if (m.enabled) {
-              const val = evaluateCustomMetric(m, srcNode?.hostName || srcNode?.name || '', hostFieldMap, hosts);
+              const val = evaluateCustomMetric(m, getMetricHostName(srcNode), hostFieldMap, hosts);
               if (val !== null) {
                 const display = getMappedMetricDisplay(m, val, valueMappings);
                 const alerting = display.alertState ? display.alertState !== 'none' : isMetricAlerting(val, m);
@@ -663,7 +666,10 @@ export const CanvasRenderer: React.FC<Props> = ({
   );
 
   const bgColor = resolveGrafanaColor(appearance.bgColor || '#111217');
-  const usedHostNames = useMemo(() => nodeConfigs.map((n) => n.hostName), [nodeConfigs]);
+  const usedHostNames = useMemo(
+    () => nodeConfigs.filter((n) => n.nodeMode !== 'static').map((n) => n.hostName),
+    [nodeConfigs]
+  );
 
   return (
     <div ref={containerRef} style={{ width, height, position: 'relative' }}>

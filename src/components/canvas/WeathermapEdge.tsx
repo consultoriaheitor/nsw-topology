@@ -43,33 +43,59 @@ const formatAxisValue = (bps: number): string => {
   return `${bps.toFixed(0)}`;
 };
 
-const getShiftedEdgePoints = (
+const getCubicPoint = (
+  t: number,
+  sourceX: number,
+  sourceY: number,
+  control1X: number,
+  control1Y: number,
+  control2X: number,
+  control2Y: number,
+  targetX: number,
+  targetY: number
+) => {
+  const mt = 1 - t;
+  return {
+    x: mt ** 3 * sourceX + 3 * mt ** 2 * t * control1X + 3 * mt * t ** 2 * control2X + t ** 3 * targetX,
+    y: mt ** 3 * sourceY + 3 * mt ** 2 * t * control1Y + 3 * mt * t ** 2 * control2Y + t ** 3 * targetY,
+  };
+};
+
+const getCurvedEdgePath = (
   sourceX: number,
   sourceY: number,
   targetX: number,
   targetY: number,
+  sourcePosition: EdgeProps<WeathermapEdgeType>['sourcePosition'],
+  targetPosition: EdgeProps<WeathermapEdgeType>['targetPosition'],
   offset: number
-) => {
-  if (!offset) {
-    return { sourceX, sourceY, targetX, targetY };
+): [string, number, number] => {
+  if (Math.abs(offset) < 1) {
+    const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+    return [path, labelX, labelY];
   }
 
   const dx = targetX - sourceX;
   const dy = targetY - sourceY;
   const length = Math.hypot(dx, dy);
   if (!length) {
-    return { sourceX, sourceY, targetX, targetY };
+    const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+    return [path, labelX, labelY];
   }
 
   const normalX = -dy / length;
   const normalY = dx / length;
+  const control1X = sourceX + dx * 0.35 + normalX * offset;
+  const control1Y = sourceY + dy * 0.35 + normalY * offset;
+  const control2X = sourceX + dx * 0.65 + normalX * offset;
+  const control2Y = sourceY + dy * 0.65 + normalY * offset;
+  const labelPoint = getCubicPoint(0.5, sourceX, sourceY, control1X, control1Y, control2X, control2Y, targetX, targetY);
 
-  return {
-    sourceX: sourceX + normalX * offset,
-    sourceY: sourceY + normalY * offset,
-    targetX: targetX + normalX * offset,
-    targetY: targetY + normalY * offset,
-  };
+  return [
+    `M${sourceX},${sourceY} C${control1X},${control1Y} ${control2X},${control2Y} ${targetX},${targetY}`,
+    labelPoint.x,
+    labelPoint.y,
+  ];
 };
 
 const formatEdgeMetricValue = (metric: any): string => {
@@ -262,16 +288,16 @@ export const WeathermapEdge = memo(
     const showTraffic = data?.showTraffic ?? false;
     const isRed = data?.isRed ?? false;
     const parallelOffset = data?.parallelOffset || 0;
-    const shifted = getShiftedEdgePoints(sourceX, sourceY, targetX, targetY, parallelOffset);
 
-    const [edgePath, labelX, labelY] = getBezierPath({
-      sourceX: shifted.sourceX,
-      sourceY: shifted.sourceY,
-      targetX: shifted.targetX,
-      targetY: shifted.targetY,
+    const [edgePath, labelX, labelY] = getCurvedEdgePath(
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
       sourcePosition,
       targetPosition,
-    });
+      parallelOffset
+    );
 
     let dashArray: string | undefined;
     if (lineStyle === 'dashed') {
