@@ -125,6 +125,11 @@ export const LINE_MODE_OPTIONS = [
   { value: 'custom', label: 'Custom offset' },
 ];
 
+export const NODE_MODE_OPTIONS = [
+  { value: 'monitored', label: 'Monitored host' },
+  { value: 'static', label: 'Static node' },
+];
+
 export const CAPACITY_OPTIONS = [
   { value: 10, label: '10 Mb' },
   { value: 100, label: '100 Mb' },

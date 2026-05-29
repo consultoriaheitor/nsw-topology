@@ -44,7 +44,7 @@ const getDefaultAlertColor = (state: ValueMappingAlertState, currentColor?: stri
     return COLORS.warning;
   }
   if (state === 'alert') {
-    return COLORS.danger;
+    return COLORS.warning;
   }
   return currentColor || COLORS.textWhite;
 };
