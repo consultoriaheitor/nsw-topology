@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal, Button, Field, Input, Select, ColorPicker, IconButton } from '@grafana/ui';
-import { ValueMapping, ValueMappingEntry, ValueMappingType } from '../../types';
-import { VALUE_MAPPING_TYPE_OPTIONS } from '../../constants';
+import { ValueMapping, ValueMappingEntry, ValueMappingType, ValueMappingAlertState } from '../../types';
+import { VALUE_MAPPING_ALERT_STATE_OPTIONS, VALUE_MAPPING_TYPE_OPTIONS } from '../../constants';
 import { COLORS, FONT, SECTION_HEADER } from '../../styles/tokens';
 
 interface Props {
@@ -18,6 +18,7 @@ const createEntry = (type: ValueMappingType): ValueMappingEntry => ({
   pattern: type === 'regex' ? '' : undefined,
   text: '',
   color: COLORS.textWhite,
+  alertState: 'none',
 });
 
 const createMapping = (): ValueMapping => ({
@@ -35,11 +36,27 @@ const toOptionalNumber = (value: string): number | undefined => {
   return Number.isFinite(parsed) ? parsed : undefined;
 };
 
+const getDefaultAlertColor = (state: ValueMappingAlertState, currentColor?: string): string | undefined => {
+  if (currentColor && currentColor !== COLORS.textWhite) {
+    return currentColor;
+  }
+  if (state === 'warning') {
+    return COLORS.warning;
+  }
+  if (state === 'alert') {
+    return COLORS.danger;
+  }
+  return currentColor || COLORS.textWhite;
+};
+
 export const ValueMappingsModal: React.FC<Props> = ({ mappings, onSave, onClose }) => {
   const [draft, setDraft] = useState<ValueMapping[]>(
     mappings.map((mapping) => ({
       ...mapping,
-      entries: mapping.entries && mapping.entries.length > 0 ? mapping.entries : [createEntry(mapping.type)],
+      entries:
+        mapping.entries && mapping.entries.length > 0
+          ? mapping.entries.map((entry) => ({ ...entry, alertState: entry.alertState || 'none' }))
+          : [createEntry(mapping.type)],
     }))
   );
 
@@ -89,6 +106,7 @@ export const ValueMappingsModal: React.FC<Props> = ({ mappings, onSave, onClose 
         id: entry.id,
         text: entry.text,
         color: entry.color,
+        alertState: entry.alertState || 'none',
         value: type === 'value' ? entry.value || '' : undefined,
         from: type === 'range' ? entry.from ?? 0 : undefined,
         to: type === 'range' ? entry.to ?? 100 : undefined,
@@ -141,7 +159,7 @@ export const ValueMappingsModal: React.FC<Props> = ({ mappings, onSave, onClose 
                   style={{
                     display: 'grid',
                     gridTemplateColumns:
-                      mapping.type === 'range' ? '1fr 1fr 1fr 120px 28px' : '1fr 1fr 120px 28px',
+                      mapping.type === 'range' ? '1fr 1fr 1fr 120px 120px 28px' : '1fr 1fr 120px 120px 28px',
                     gap: 8,
                     alignItems: 'end',
                   }}
@@ -198,6 +216,19 @@ export const ValueMappingsModal: React.FC<Props> = ({ mappings, onSave, onClose 
                       />
                       <span style={{ fontSize: FONT.body, color: COLORS.textMuted }}>{entry.color}</span>
                     </div>
+                  </Field>
+                  <Field label="Alert">
+                    <Select
+                      options={VALUE_MAPPING_ALERT_STATE_OPTIONS}
+                      value={entry.alertState || 'none'}
+                      onChange={(v) => {
+                        const alertState = (v.value as ValueMappingAlertState) || 'none';
+                        updateEntry(mappingIndex, entryIndex, {
+                          alertState,
+                          color: getDefaultAlertColor(alertState, entry.color),
+                        });
+                      }}
+                    />
                   </Field>
                   <IconButton
                     name="times"

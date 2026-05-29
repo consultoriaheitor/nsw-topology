@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Modal, Button, Field, Input, Select, UnitPicker } from '@grafana/ui';
-import { NodeConfig, ConnectionConfig, ZabbixHost, ValueMapping, CustomMetric } from '../../types';
-import { CAPACITY_OPTIONS, LINE_STYLE_OPTIONS } from '../../constants';
+import { NodeConfig, ConnectionConfig, ZabbixHost, ValueMapping, CustomMetric, ConnectionLineMode } from '../../types';
+import { CAPACITY_OPTIONS, LINE_MODE_OPTIONS, LINE_STYLE_OPTIONS } from '../../constants';
 import { COLORS, FONT, SECTION_HEADER } from '../../styles/tokens';
 import { CustomMetricList } from './CustomMetricList';
 
@@ -44,6 +44,8 @@ export const ConnFormModal: React.FC<Props> = ({
   const [alias, setAlias] = useState(conn?.alias || '');
   const [capacity, setCapacity] = useState(String(conn?.capacity || 1000));
   const [lineStyle, setLineStyle] = useState(conn?.lineStyle || 'solid');
+  const [lineMode, setLineMode] = useState<ConnectionLineMode>(conn?.lineMode || 'dynamic');
+  const [lineOffset, setLineOffset] = useState(String(conn?.lineOffset ?? 0));
   const [animated, setAnimated] = useState(conn?.animated ?? true);
   const [showTraffic, setShowTraffic] = useState(conn?.showTraffic ?? false);
   const [downloadField, setDownloadField] = useState(conn?.downloadField || '');
@@ -77,21 +79,28 @@ export const ConnFormModal: React.FC<Props> = ({
     return [{ value: '', label: 'Select...' }, ...bases.map((b) => ({ value: b, label: b }))];
   }, [sourceId, nodes, hostFieldMap]);
 
-  const allFields = useMemo(() => {
+  const sourceFields = useMemo(() => {
     const src = nodes.find((n) => n.id === sourceId);
     if (!src) {
-      return [{ value: '', label: 'Select...' }];
+      return [];
     }
-    const fields = hostFieldMap[src.hostName] || hostFieldMap[src.name] || [];
+    return hostFieldMap[src.hostName] || hostFieldMap[src.name] || [];
+  }, [hostFieldMap, sourceId, nodes]);
 
-    let filteredFields = fields;
+  const trafficFields = useMemo(() => {
+    let filteredFields = sourceFields;
     if (interfaceName) {
-      filteredFields = fields.filter(
+      filteredFields = sourceFields.filter(
         (f) => f.startsWith(interfaceName) || extractInterfaceBaseName(f) === interfaceName
       );
     }
     return [{ value: '', label: 'Select...' }, ...filteredFields.map((f) => ({ value: f, label: f }))];
-  }, [hostFieldMap, sourceId, nodes, interfaceName]);
+  }, [sourceFields, interfaceName]);
+
+  const customMetricFields = useMemo(
+    () => [{ value: '', label: 'Select...' }, ...sourceFields.map((f) => ({ value: f, label: f }))],
+    [sourceFields]
+  );
 
   const handleInterfaceSelect = (baseName: string) => {
     setInterfaceName(baseName);
@@ -130,6 +139,8 @@ export const ConnFormModal: React.FC<Props> = ({
       interfaceName,
       alias,
       lineStyle,
+      lineMode,
+      lineOffset: Number(lineOffset) || 0,
       animated,
       showTraffic,
       downloadField,
@@ -172,10 +183,10 @@ export const ConnFormModal: React.FC<Props> = ({
       <div style={SECTION_HEADER}>📊 Traffic</div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         <Field label="Download">
-          <Select options={allFields} value={downloadField} onChange={(v) => setDownloadField(v.value || '')} />
+          <Select options={trafficFields} value={downloadField} onChange={(v) => setDownloadField(v.value || '')} />
         </Field>
         <Field label="Upload">
-          <Select options={allFields} value={uploadField} onChange={(v) => setUploadField(v.value || '')} />
+          <Select options={trafficFields} value={uploadField} onChange={(v) => setUploadField(v.value || '')} />
         </Field>
       </div>
       <Field label="Capacity">
@@ -213,7 +224,7 @@ export const ConnFormModal: React.FC<Props> = ({
       <CustomMetricList
         metrics={customMetrics}
         onChange={setCustomMetrics}
-        availableFields={allFields}
+        availableFields={customMetricFields}
         valueMappings={valueMappings}
         showIconPicker={true}
       />
@@ -233,6 +244,25 @@ export const ConnFormModal: React.FC<Props> = ({
             onChange={(v) => setAnimated(v.value === 'true')}
           />
         </Field>
+        <Field label="Line Position">
+          <Select
+            options={LINE_MODE_OPTIONS}
+            value={lineMode}
+            onChange={(v) => setLineMode((v.value as ConnectionLineMode) || 'dynamic')}
+          />
+        </Field>
+        {lineMode === 'custom' && (
+          <Field label="Custom Offset">
+            <Input
+              type="number"
+              value={lineOffset}
+              onChange={(e) => setLineOffset(e.currentTarget.value)}
+              min={-400}
+              max={400}
+              step={5}
+            />
+          </Field>
+        )}
       </div>
 
       <Modal.ButtonRow>

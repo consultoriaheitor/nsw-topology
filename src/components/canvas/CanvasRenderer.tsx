@@ -209,8 +209,14 @@ export const CanvasRenderer: React.FC<Props> = ({
         for (const m of node.customMetrics) {
           if (m.enabled) {
             const val = evaluateCustomMetric(m, node.hostName, hostFieldMap, hosts);
-            if (val !== null && isMetricAlerting(val, m)) {
-              return resolveGrafanaColor(m.alertColor || '') || resolvedColors.alert;
+            if (val !== null) {
+              const display = getMappedMetricDisplay(m, val, valueMappings);
+              if (display.alertState && display.alertState !== 'none') {
+                return display.color || resolveGrafanaColor(m.alertColor || '') || resolvedColors.alert;
+              }
+              if (!display.alertState && isMetricAlerting(val, m)) {
+                return resolveGrafanaColor(m.alertColor || '') || resolvedColors.alert;
+              }
             }
           }
         }
@@ -218,7 +224,7 @@ export const CanvasRenderer: React.FC<Props> = ({
 
       return baseStatus === 'online' ? resolvedColors.online : resolvedColors.alert;
     },
-    [resolvedColors, getMetricValue, hostFieldMap, hosts]
+    [resolvedColors, getMetricValue, hostFieldMap, hosts, valueMappings]
   );
 
   const nodeHasZeroTraffic = useCallback(
@@ -285,13 +291,13 @@ export const CanvasRenderer: React.FC<Props> = ({
           if (m.enabled) {
             const val = evaluateCustomMetric(m, node.hostName, hostFieldMap, hosts);
             if (val !== null) {
-              const alerting = isMetricAlerting(val, m);
               const display = getMappedMetricDisplay(m, val, valueMappings);
+              const alerting = display.alertState ? display.alertState !== 'none' : isMetricAlerting(val, m);
               result.push({
                 label: m.name,
                 value: display.text,
                 color: alerting
-                  ? resolveGrafanaColor(m.alertColor || '') || resolvedColors.alert
+                  ? display.color || resolveGrafanaColor(m.alertColor || '') || resolvedColors.alert
                   : display.color || resolvedColors.online,
                 alerting,
               });
@@ -465,15 +471,16 @@ export const CanvasRenderer: React.FC<Props> = ({
             if (m.enabled) {
               const val = evaluateCustomMetric(m, srcNode?.hostName || srcNode?.name || '', hostFieldMap, hosts);
               if (val !== null) {
-                const alerting = isMetricAlerting(val, m);
                 const display = getMappedMetricDisplay(m, val, valueMappings);
+                const alerting = display.alertState ? display.alertState !== 'none' : isMetricAlerting(val, m);
                 evaluatedMetrics.push({
                   ...m,
                   computedValue: val,
                   displayValue: display.text,
                   displayColor: alerting
-                    ? resolveGrafanaColor(m.alertColor || '') || COLORS.danger
+                    ? display.color || resolveGrafanaColor(m.alertColor || '') || COLORS.danger
                     : display.color || COLORS.textWhite,
+                  alertState: display.alertState,
                   alerting,
                 });
               }
@@ -482,7 +489,8 @@ export const CanvasRenderer: React.FC<Props> = ({
         }
 
         const parallel = parallelMeta.get(conn.id) || { index: 0, count: 1 };
-        const parallelOffset = (parallel.index - (parallel.count - 1) / 2) * 28;
+        const dynamicOffset = (parallel.index - (parallel.count - 1) / 2) * 28;
+        const parallelOffset = conn.lineMode === 'custom' ? conn.lineOffset || 0 : dynamicOffset;
 
         return {
           id: conn.id,
