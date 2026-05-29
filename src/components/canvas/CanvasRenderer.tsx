@@ -40,7 +40,7 @@ import {
   DEFAULT_ICON_SIZE,
   resolveGrafanaColor,
 } from '../../constants';
-import { COLORS, RADIUS, BLUR, FONT } from '../../styles/tokens';
+import { COLORS, RADIUS, BLUR, FONT, Z_INDEX } from '../../styles/tokens';
 import { TopologyNode, type TopologyNodeData, type MetricDisplay, type ConnectionDisplay } from './TopologyNode';
 import { WeathermapEdge, type WeathermapEdgeData } from './WeathermapEdge';
 import { FloatingConnectionLine } from './FloatingConnectionLine';
@@ -626,8 +626,15 @@ export const CanvasRenderer: React.FC<Props> = ({
 
     e.preventDefault();
     const b = containerRef.current?.getBoundingClientRect();
-    setCtxMenu({ type: 'node', id: node.id, x: e.clientX - (b?.left || 0), y: e.clientY - (b?.top || 0) });
-  }, [isEditing]);
+    const x = e.clientX - (b?.left || 0);
+    const y = e.clientY - (b?.top || 0);
+    setCtxMenu({
+      type: 'node',
+      id: node.id,
+      x: Math.min(Math.max(8, x), Math.max(8, (b?.width || width) - 176)),
+      y: Math.min(Math.max(8, y), Math.max(8, (b?.height || height) - 96)),
+    });
+  }, [isEditing, width, height]);
 
   const handleEdgeContextMenu = useCallback((e: React.MouseEvent, edge: WeathermapEdgeType) => {
     if (!isEditing) {
@@ -636,8 +643,15 @@ export const CanvasRenderer: React.FC<Props> = ({
 
     e.preventDefault();
     const b = containerRef.current?.getBoundingClientRect();
-    setCtxMenu({ type: 'edge', id: edge.id, x: e.clientX - (b?.left || 0), y: e.clientY - (b?.top || 0) });
-  }, [isEditing]);
+    const x = e.clientX - (b?.left || 0);
+    const y = e.clientY - (b?.top || 0);
+    setCtxMenu({
+      type: 'edge',
+      id: edge.id,
+      x: Math.min(Math.max(8, x), Math.max(8, (b?.width || width) - 176)),
+      y: Math.min(Math.max(8, y), Math.max(8, (b?.height || height) - 96)),
+    });
+  }, [isEditing, width, height]);
 
   const handlePaneClick = useCallback(() => {
     setCtxMenu(null);
@@ -718,7 +732,7 @@ export const CanvasRenderer: React.FC<Props> = ({
   );
 
   return (
-    <div ref={containerRef} style={{ width, height, position: 'relative' }}>
+    <div ref={containerRef} style={{ width, height, position: 'relative', isolation: 'isolate' }}>
       <svg style={{ position: 'absolute', width: 0, height: 0 }}>
         <defs>
           <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
@@ -738,6 +752,7 @@ export const CanvasRenderer: React.FC<Props> = ({
         .react-flow__node:hover .react-flow__resize-control,
         .react-flow__node.selected .react-flow__resize-control { opacity: 1; }
         .react-flow__controls { display: none !important; }
+        .react-flow__edgelabel-renderer { z-index: ${Z_INDEX.edgeLabel} !important; }
       `}</style>
       <ReactFlow
         nodes={rfNodes}
@@ -787,7 +802,7 @@ export const CanvasRenderer: React.FC<Props> = ({
           />
         )}
         {showLegend && (
-          <Panel position="top-right">
+          <Panel position="top-right" style={{ zIndex: Z_INDEX.chrome }}>
             <div
               style={{
                 background: COLORS.surfaceLight,
@@ -825,7 +840,7 @@ export const CanvasRenderer: React.FC<Props> = ({
           </Panel>
         )}
         {searchOpen && (
-          <Panel position="top-center">
+          <Panel position="top-center" style={{ zIndex: Z_INDEX.popover }}>
             <SearchBar query={searchQuery} onChange={setSearchQuery} />
           </Panel>
         )}

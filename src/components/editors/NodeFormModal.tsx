@@ -262,7 +262,7 @@ export const NodeFormModal: React.FC<Props> = ({
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: 'repeat(7, 1fr)',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(48px, 1fr))',
               gap: 4,
               maxHeight: 170,
               overflowY: 'auto' as const,
@@ -297,7 +297,7 @@ export const NodeFormModal: React.FC<Props> = ({
           <Field label="Ping Field">
             <Select options={fieldOpts} value={pingField} onChange={(v) => setPingField(v.value || '')} />
           </Field>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
             <Field label="Online Value">
               <Input
                 type="number"
@@ -319,7 +319,7 @@ export const NodeFormModal: React.FC<Props> = ({
           />
 
           <div style={SECTION_HEADER}>🎨 Node Style</div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
             <Field label="Icon Color">
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <ColorPicker color={iconColor} onChange={(c) => setIconColor(c)} />

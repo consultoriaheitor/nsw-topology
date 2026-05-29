@@ -153,7 +153,7 @@ export const ConnFormModal: React.FC<Props> = ({
   return (
     <Modal title={`🔗 ${conn ? 'Edit Connection' : 'Add Connection'}`} isOpen={true} onDismiss={onCancel}>
       <div style={SECTION_HEADER}>📌 Endpoints</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
         <Field label="From">
           <Select
             options={nodeOpts}
@@ -181,7 +181,7 @@ export const ConnFormModal: React.FC<Props> = ({
       </Field>
 
       <div style={SECTION_HEADER}>📊 Traffic</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>
         <Field label="Download">
           <Select options={trafficFields} value={downloadField} onChange={(v) => setDownloadField(v.value || '')} />
         </Field>
@@ -230,7 +230,7 @@ export const ConnFormModal: React.FC<Props> = ({
       />
 
       <div style={{ marginTop: 24, ...SECTION_HEADER }}>🎨 Style</div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 8 }}>
         <Field label="Line Style">
           <Select options={LINE_STYLE_OPTIONS} value={lineStyle} onChange={(v) => setLineStyle(v.value || 'solid')} />
         </Field>
