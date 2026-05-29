@@ -120,15 +120,32 @@ export const LINE_STYLE_OPTIONS = [
   { value: 'dotted', label: 'Dotted' },
 ];
 
+export const LINE_MODE_OPTIONS = [
+  { value: 'dynamic', label: 'Dynamic' },
+  { value: 'custom', label: 'Custom offset' },
+];
+
 export const CAPACITY_OPTIONS = [
   { value: 10, label: '10 Mb' },
   { value: 100, label: '100 Mb' },
   { value: 1000, label: '1 Gb' },
   { value: 10000, label: '10 Gb' },
   { value: 20000, label: '20 Gb' },
+  { value: 30000, label: '30 Gb' },
   { value: 40000, label: '40 Gb' },
+  { value: 50000, label: '50 Gb' },
   { value: 60000, label: '60 Gb' },
+  { value: 70000, label: '70 Gb' },
+  { value: 80000, label: '80 Gb' },
+  { value: 90000, label: '90 Gb' },
   { value: 100000, label: '100 Gb' },
+  { value: 200000, label: '200 Gb' },
+  { value: 300000, label: '300 Gb' },
+  { value: 400000, label: '400 Gb' },
+  { value: 500000, label: '500 Gb' },
+  { value: 600000, label: '600 Gb' },
+  { value: 700000, label: '700 Gb' },
+  { value: 800000, label: '800 Gb' },
 ];
 
 export const ICON_SIZE_OPTIONS = [
@@ -170,6 +187,12 @@ export const VALUE_MAPPING_TYPE_OPTIONS = [
   { value: 'value', label: 'Exact value' },
   { value: 'range', label: 'Range' },
   { value: 'regex', label: 'Regex' },
+];
+
+export const VALUE_MAPPING_ALERT_STATE_OPTIONS = [
+  { value: 'none', label: 'No alert' },
+  { value: 'warning', label: 'Warning' },
+  { value: 'alert', label: 'Alert' },
 ];
 
 export const ICON_EMOJI_OPTIONS = [

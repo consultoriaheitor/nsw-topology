@@ -17,6 +17,8 @@ export interface GeneralConfig {
 export type ThresholdOperator = 'gt' | 'gte' | 'lt' | 'lte' | 'eq' | 'neq';
 
 export type ValueMappingType = 'value' | 'range' | 'regex';
+export type ValueMappingAlertState = 'none' | 'warning' | 'alert';
+export type ConnectionLineMode = 'dynamic' | 'custom';
 
 export interface ValueMappingEntry {
   id: string;
@@ -26,6 +28,7 @@ export interface ValueMappingEntry {
   pattern?: string;
   text: string;
   color?: string;
+  alertState?: ValueMappingAlertState;
 }
 
 export interface ValueMapping {
@@ -98,6 +101,8 @@ export interface ConnectionConfig {
   interfaceName: string;
   alias: string;
   lineStyle: string;
+  lineMode?: ConnectionLineMode;
+  lineOffset?: number;
   animated: boolean;
   showTraffic: boolean;
   convertBits?: boolean;

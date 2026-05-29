@@ -51,7 +51,7 @@ export const getMappedMetricDisplay = (
   metric: CustomMetric,
   value: number,
   valueMappings: ValueMapping[] = []
-): { text: string; color?: string } => {
+): { text: string; color?: string; alertState?: 'none' | 'warning' | 'alert' } => {
   const mapping = valueMappings.find((m) => m.id === metric.valueMappingId);
   if (mapping) {
     for (const entry of mapping.entries) {
@@ -75,6 +75,7 @@ export const getMappedMetricDisplay = (
         return {
           text: entry.text || formatCustomMetricValue(metric, value),
           color: entry.color ? resolveGrafanaColor(entry.color) : undefined,
+          alertState: entry.alertState,
         };
       }
     }
