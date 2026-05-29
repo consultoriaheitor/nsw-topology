@@ -70,6 +70,7 @@ interface Props {
   dataSeries: any[];
   width: number;
   height: number;
+  isEditing: boolean;
   enableZoom: boolean;
   enablePan: boolean;
   showMiniMap: boolean;
@@ -100,6 +101,7 @@ export const CanvasRenderer: React.FC<Props> = ({
   dataSeries,
   width,
   height,
+  isEditing,
   enableZoom,
   enablePan,
   showMiniMap,
@@ -151,6 +153,20 @@ export const CanvasRenderer: React.FC<Props> = ({
       });
     }
   }, [addNodeTrigger]);
+
+  useEffect(() => {
+    if (!isEditing) {
+      queueMicrotask(() => {
+        setCtxMenu(null);
+        setEditingNode(null);
+        setShowNodeModal(false);
+        setEditingConn(null);
+        setShowConnModal(false);
+        setPendingConn(null);
+        setDeleteTarget(null);
+      });
+    }
+  }, [isEditing]);
 
   const getMetricValue = useCallback(
     (node: NodeConfig, field: string): number | null => {
@@ -419,6 +435,7 @@ export const CanvasRenderer: React.FC<Props> = ({
             iconSize: node.iconSize || DEFAULT_ICON_SIZE,
             width: node.width || DEFAULT_NODE_WIDTH,
             height: node.height || DEFAULT_NODE_HEIGHT,
+            isEditing,
           },
         };
       }),
@@ -432,6 +449,7 @@ export const CanvasRenderer: React.FC<Props> = ({
       nodeHasZeroTraffic,
       resolvedColors,
       searchQuery,
+      isEditing,
     ]
   );
 
@@ -548,6 +566,11 @@ export const CanvasRenderer: React.FC<Props> = ({
   const handleNodesChange: OnNodesChange<TopologyNodeType> = useCallback(
     (changes) => {
       onNodesChange(changes);
+
+      if (!isEditing) {
+        return;
+      }
+
       for (const c of changes) {
         if (c.type === 'position') {
           const p = c as NodePositionChange;
@@ -569,12 +592,21 @@ export const CanvasRenderer: React.FC<Props> = ({
         }
       }
     },
-    [onNodesChange, onNodePositionChange, onNodeResize, appearance.showGrid, appearance.gridSize]
+    [isEditing, onNodesChange, onNodePositionChange, onNodeResize, appearance.showGrid, appearance.gridSize]
   );
 
-  const handleEdgesChange: OnEdgesChange<WeathermapEdgeType> = useCallback((c) => onEdgesChange(c), [onEdgesChange]);
+  const handleEdgesChange: OnEdgesChange<WeathermapEdgeType> = useCallback(
+    (c) => {
+      onEdgesChange(c);
+    },
+    [onEdgesChange]
+  );
 
   const handleConnect: OnConnect = useCallback((params) => {
+    if (!isEditing) {
+      return;
+    }
+
     if (params.source && params.target && params.source !== params.target) {
       setPendingConn({
         sourceId: params.source,
@@ -585,19 +617,27 @@ export const CanvasRenderer: React.FC<Props> = ({
       setEditingConn(null);
       setShowConnModal(true);
     }
-  }, []);
+  }, [isEditing]);
 
   const handleNodeContextMenu = useCallback((e: React.MouseEvent, node: TopologyNodeType) => {
+    if (!isEditing) {
+      return;
+    }
+
     e.preventDefault();
     const b = containerRef.current?.getBoundingClientRect();
     setCtxMenu({ type: 'node', id: node.id, x: e.clientX - (b?.left || 0), y: e.clientY - (b?.top || 0) });
-  }, []);
+  }, [isEditing]);
 
   const handleEdgeContextMenu = useCallback((e: React.MouseEvent, edge: WeathermapEdgeType) => {
+    if (!isEditing) {
+      return;
+    }
+
     e.preventDefault();
     const b = containerRef.current?.getBoundingClientRect();
     setCtxMenu({ type: 'edge', id: edge.id, x: e.clientX - (b?.left || 0), y: e.clientY - (b?.top || 0) });
-  }, []);
+  }, [isEditing]);
 
   const handlePaneClick = useCallback(() => {
     setCtxMenu(null);
@@ -712,6 +752,13 @@ export const CanvasRenderer: React.FC<Props> = ({
         onPaneClick={handlePaneClick}
         connectionLineComponent={FloatingConnectionLine}
         connectionMode={ConnectionMode.Loose}
+        nodesDraggable={isEditing}
+        nodesConnectable={isEditing}
+        nodesFocusable={isEditing}
+        edgesFocusable={isEditing}
+        edgesReconnectable={isEditing}
+        elementsSelectable={isEditing}
+        selectNodesOnDrag={isEditing}
         zoomOnScroll={enableZoom}
         zoomOnPinch={enableZoom}
         zoomOnDoubleClick={false}

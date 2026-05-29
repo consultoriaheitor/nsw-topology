@@ -1,5 +1,6 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { PanelProps } from '@grafana/data';
+import { locationService } from '@grafana/runtime';
 import { ReactFlowProvider, useReactFlow } from '@xyflow/react';
 import { TopologyOptions, NodeConfig, ConnectionConfig } from '../types';
 import { parseDataFrames } from '../data/parser';
@@ -11,8 +12,33 @@ import { ValueMappingsModal } from './editors/ValueMappingsModal';
 
 type Props = PanelProps<TopologyOptions>;
 
+const isPanelEditRoute = (panelId: number): boolean => {
+  try {
+    return locationService.getSearch().get('editPanel') === String(panelId);
+  } catch {
+    return (
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('editPanel') === String(panelId)
+    );
+  }
+};
+
+const usePanelEditMode = (panelId: number): boolean => {
+  const [isEditing, setIsEditing] = useState(() => isPanelEditRoute(panelId));
+
+  useEffect(() => {
+    const update = () => setIsEditing(isPanelEditRoute(panelId));
+    update();
+
+    const subscription = locationService.getLocationObservable().subscribe(update);
+    return () => subscription.unsubscribe();
+  }, [panelId]);
+
+  return isEditing;
+};
+
 // main panel — state management + layout
-const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsChange }) => {
+const InnerPanel: React.FC<Props> = ({ id, options, data, width, height, onOptionsChange }) => {
   const appearance = useMemo(() => ({ ...DEFAULT_APPEARANCE, ...options.appearance }), [options.appearance]);
   const colorsConfig = useMemo(() => ({ ...DEFAULT_COLORS, ...options.colors }), [options.colors]);
   const interaction = useMemo(() => ({ ...DEFAULT_INTERACTION, ...options.interaction }), [options.interaction]);
@@ -36,9 +62,20 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
   const [showBackup, setShowBackup] = useState(false);
   const [showValueMappings, setShowValueMappings] = useState(false);
   const reactFlow = useReactFlow();
+  const isEditing = usePanelEditMode(id);
 
   const title = options.general?.title || '';
   const titleSize = options.general?.titleSize || 18;
+
+  useEffect(() => {
+    if (!isEditing) {
+      queueMicrotask(() => {
+        setSearchOpen(false);
+        setShowBackup(false);
+        setShowValueMappings(false);
+      });
+    }
+  }, [isEditing]);
 
   const updateOptions = useCallback(
     (patch: Partial<TopologyOptions>) => {
@@ -114,7 +151,7 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
   }, [options, interaction, onOptionsChange]);
 
   const titleBarHeight = title ? 40 : 0;
-  const sidebarWidth = 48;
+  const sidebarWidth = isEditing ? 48 : 0;
   const canvasWidth = Math.max(width - sidebarWidth, 0);
   const canvasHeight = Math.max(height - titleBarHeight, 0);
 
@@ -142,16 +179,18 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
         </div>
       )}
       <div style={{ position: 'relative', height: canvasHeight }}>
-        <TopologySidebar
-          onAddNode={() => setAddNodeTrigger((prev) => prev + 1)}
-          onCenterMap={handleCenterMap}
-          onToggleZoom={handleToggleZoom}
-          onToggleSearch={() => setSearchOpen((prev) => !prev)}
-          onValueMappings={() => setShowValueMappings(true)}
-          onBackup={() => setShowBackup(true)}
-          zoomEnabled={interaction.enableZoom}
-          searchOpen={searchOpen}
-        />
+        {isEditing && (
+          <TopologySidebar
+            onAddNode={() => setAddNodeTrigger((prev) => prev + 1)}
+            onCenterMap={handleCenterMap}
+            onToggleZoom={handleToggleZoom}
+            onToggleSearch={() => setSearchOpen((prev) => !prev)}
+            onValueMappings={() => setShowValueMappings(true)}
+            onBackup={() => setShowBackup(true)}
+            zoomEnabled={interaction.enableZoom}
+            searchOpen={searchOpen}
+          />
+        )}
         <div style={{ marginLeft: sidebarWidth, width: canvasWidth, height: canvasHeight }}>
           <CanvasRenderer
             nodes={nodes}
@@ -165,8 +204,9 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
             dataSeries={data.series}
             width={canvasWidth}
             height={canvasHeight}
+            isEditing={isEditing}
             enableZoom={interaction.enableZoom}
-            enablePan={interaction.enablePan}
+            enablePan={isEditing && interaction.enablePan}
             showMiniMap={interaction.showMiniMap}
             showLegend={interaction.showLegend}
             title={title}
