@@ -657,6 +657,8 @@ export const CanvasRenderer: React.FC<Props> = ({
     setCtxMenu(null);
   }, []);
 
+  const keepNodePointerEvents = useCallback(() => undefined, []);
+
   const handleCtxEdit = useCallback(() => {
     if (!ctxMenu) {
       return;
@@ -764,6 +766,8 @@ export const CanvasRenderer: React.FC<Props> = ({
         onConnect={handleConnect}
         onNodeContextMenu={handleNodeContextMenu}
         onEdgeContextMenu={handleEdgeContextMenu}
+        onNodeMouseEnter={keepNodePointerEvents}
+        onNodeMouseLeave={keepNodePointerEvents}
         onPaneClick={handlePaneClick}
         connectionLineComponent={FloatingConnectionLine}
         connectionMode={ConnectionMode.Loose}
