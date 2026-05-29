@@ -6,7 +6,6 @@ import { parseDataFrames } from '../data/parser';
 import { DEFAULT_APPEARANCE, DEFAULT_COLORS, DEFAULT_INTERACTION, DEFAULT_METRIC } from '../constants';
 import { CanvasRenderer } from './canvas/CanvasRenderer';
 import { TopologySidebar } from './sidebar/TopologySidebar';
-import { WelcomeModal } from './WelcomeModal';
 import { BackupModal } from './editors/BackupModal';
 import { ValueMappingsModal } from './editors/ValueMappingsModal';
 
@@ -34,7 +33,6 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [addNodeTrigger, setAddNodeTrigger] = useState(0);
-  const [showWelcome, setShowWelcome] = useState(interaction.showWelcome !== false);
   const [showBackup, setShowBackup] = useState(false);
   const [showValueMappings, setShowValueMappings] = useState(false);
   const reactFlow = useReactFlow();
@@ -115,14 +113,6 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
     });
   }, [options, interaction, onOptionsChange]);
 
-  const handleCloseWelcome = useCallback(() => {
-    setShowWelcome(false);
-    onOptionsChange({
-      ...options,
-      interaction: { ...interaction, showWelcome: false },
-    });
-  }, [options, interaction, onOptionsChange]);
-
   const titleBarHeight = title ? 40 : 0;
   const sidebarWidth = 48;
   const canvasWidth = Math.max(width - sidebarWidth, 0);
@@ -130,7 +120,6 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
 
   return (
     <div style={{ position: 'relative', width, height, overflow: 'hidden', fontFamily: 'Inter, sans-serif' }}>
-      {showWelcome && <WelcomeModal onClose={handleCloseWelcome} />}
       {title && (
         <div
           style={{
@@ -162,7 +151,6 @@ const InnerPanel: React.FC<Props> = ({ options, data, width, height, onOptionsCh
           onBackup={() => setShowBackup(true)}
           zoomEnabled={interaction.enableZoom}
           searchOpen={searchOpen}
-          showDonateHeart={appearance.showDonateCard === false}
         />
         <div style={{ marginLeft: sidebarWidth, width: canvasWidth, height: canvasHeight }}>
           <CanvasRenderer
