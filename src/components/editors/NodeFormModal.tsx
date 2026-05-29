@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Modal, Button, Field, Input, Select, ColorPicker } from '@grafana/ui';
-import { NodeConfig, CustomMetric } from '../../types';
+import { NodeConfig, CustomMetric, ValueMapping } from '../../types';
 import { CustomMetricList } from './CustomMetricList';
 import {
   ICON_SIZE_OPTIONS,
@@ -23,12 +23,21 @@ interface Props {
   hostNames: string[];
   usedHostNames: string[];
   hostFieldMap: Record<string, string[]>;
+  valueMappings?: ValueMapping[];
   onSave: (n: NodeConfig) => void;
   onCancel: () => void;
 }
 
 // node create/edit modal — auto-detects default metrics from host fields
-export const NodeFormModal: React.FC<Props> = ({ node, hostNames, usedHostNames, hostFieldMap, onSave, onCancel }) => {
+export const NodeFormModal: React.FC<Props> = ({
+  node,
+  hostNames,
+  usedHostNames,
+  hostFieldMap,
+  valueMappings = [],
+  onSave,
+  onCancel,
+}) => {
   const [name, setName] = useState(node?.name || '');
   const [hostName, setHostName] = useState(node?.hostName || '');
   const [ip, setIp] = useState(node?.ip || '');
@@ -42,9 +51,14 @@ export const NodeFormModal: React.FC<Props> = ({ node, hostNames, usedHostNames,
   const [iconColor, setIconColor] = useState(node?.iconColor || DEFAULT_ICON_COLOR);
   const [textSize, setTextSize] = useState(String(node?.textSize || DEFAULT_TEXT_SIZE));
 
-  const [customMetrics, setCustomMetrics] = useState(() => {
+  const [customMetrics, setCustomMetrics] = useState<CustomMetric[]>(() => {
     if (node?.customMetrics && node.customMetrics.length > 0) {
-      return node.customMetrics.map((m) => ({ ...m, decimals: m.decimals ?? 1 }));
+      return node.customMetrics.map((m) => ({
+        ...m,
+        decimals: m.decimals ?? 1,
+        alertCondition: m.alertCondition || 'gt',
+        valueMappingId: m.valueMappingId || '',
+      }));
     }
 
     const fields = hostFieldMap[hostName] || [];
@@ -59,8 +73,10 @@ export const NodeFormModal: React.FC<Props> = ({ node, hostNames, usedHostNames,
         unit: 'percent',
         enabled: node?.cpuMetric?.enabled ?? false,
         alertThreshold: node?.cpuMetric?.alertThreshold ?? 80,
+        alertCondition: 'gt',
         alertColor: node?.cpuMetric?.alertColor || COLORS.warning,
         decimals: 1,
+        valueMappingId: '',
         isDefault: true,
       },
       {
@@ -72,8 +88,10 @@ export const NodeFormModal: React.FC<Props> = ({ node, hostNames, usedHostNames,
         unit: 'percent',
         enabled: node?.memoryMetric?.enabled ?? false,
         alertThreshold: node?.memoryMetric?.alertThreshold ?? 85,
+        alertCondition: 'gt',
         alertColor: node?.memoryMetric?.alertColor || COLORS.warning,
         decimals: 1,
+        valueMappingId: '',
         isDefault: true,
       },
       {
@@ -85,8 +103,10 @@ export const NodeFormModal: React.FC<Props> = ({ node, hostNames, usedHostNames,
         unit: 'celsius',
         enabled: false,
         alertThreshold: 60,
+        alertCondition: 'gt',
         alertColor: COLORS.warning,
         decimals: 1,
+        valueMappingId: '',
         isDefault: true,
       },
       {
@@ -98,8 +118,10 @@ export const NodeFormModal: React.FC<Props> = ({ node, hostNames, usedHostNames,
         unit: 'percent',
         enabled: node?.lossMetric?.enabled ?? false,
         alertThreshold: node?.lossMetric?.alertThreshold ?? 5,
+        alertCondition: 'gt',
         alertColor: node?.lossMetric?.alertColor || COLORS.warning,
         decimals: 1,
+        valueMappingId: '',
         isDefault: true,
       },
       {
@@ -111,8 +133,10 @@ export const NodeFormModal: React.FC<Props> = ({ node, hostNames, usedHostNames,
         unit: 'ms',
         enabled: node?.responseTimeMetric?.enabled ?? false,
         alertThreshold: node?.responseTimeMetric?.alertThreshold ?? 100,
+        alertCondition: 'gt',
         alertColor: node?.responseTimeMetric?.alertColor || COLORS.warning,
         decimals: 0,
+        valueMappingId: '',
         isDefault: true,
       },
     ];
@@ -153,8 +177,8 @@ export const NodeFormModal: React.FC<Props> = ({ node, hostNames, usedHostNames,
       hostName,
       ip,
       icon,
-      positionX: node?.positionX || 200,
-      positionY: node?.positionY || 200,
+      positionX: node?.positionX ?? 200,
+      positionY: node?.positionY ?? 200,
       width: node?.width || DEFAULT_NODE_WIDTH,
       height: node?.height || DEFAULT_NODE_HEIGHT,
       pingField,
@@ -248,7 +272,12 @@ export const NodeFormModal: React.FC<Props> = ({ node, hostNames, usedHostNames,
           </div>
 
           <div style={SECTION_HEADER}>📊 Custom Metrics</div>
-          <CustomMetricList metrics={customMetrics} onChange={setCustomMetrics} availableFields={fieldOpts} />
+          <CustomMetricList
+            metrics={customMetrics}
+            onChange={setCustomMetrics}
+            availableFields={fieldOpts}
+            valueMappings={valueMappings}
+          />
 
           <div style={SECTION_HEADER}>🎨 Node Style</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>

@@ -218,6 +218,7 @@ export const BackupModal: React.FC<Props> = ({ options, onRestore, onClose }) =>
     const backup = {
       nodes: options.nodes || [],
       connections: options.connections || [],
+      valueMappings: options.valueMappings || [],
       appearance: options.appearance,
       colors: options.colors,
       general: options.general,
@@ -272,6 +273,9 @@ export const BackupModal: React.FC<Props> = ({ options, onRestore, onClose }) =>
             nodes: data.nodes,
             connections: data.connections,
           };
+          if (data.valueMappings) {
+            patch.valueMappings = data.valueMappings;
+          }
           if (data.appearance) {
             patch.appearance = data.appearance;
           }

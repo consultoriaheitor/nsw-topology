@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { Button, Field, Input, Select, ColorPicker, IconButton, UnitPicker } from '@grafana/ui';
-import { CustomMetric } from '../../types';
+import { CustomMetric, ValueMapping } from '../../types';
 import { COLORS, FONT } from '../../styles/tokens';
-import { REDUCER_OPTIONS, ICON_EMOJI_OPTIONS } from '../../constants';
+import { REDUCER_OPTIONS, ICON_EMOJI_OPTIONS, THRESHOLD_OPERATOR_OPTIONS } from '../../constants';
 
 // check if it looks like a regex (starts with /)
 function isRegexValue(v: string): boolean {
@@ -180,10 +180,22 @@ interface Props {
   metrics: CustomMetric[];
   onChange: (m: CustomMetric[]) => void;
   availableFields: Array<{ value: string; label: string }>;
+  valueMappings?: ValueMapping[];
   showIconPicker?: boolean;
 }
 
-export const CustomMetricList: React.FC<Props> = ({ metrics, onChange, availableFields, showIconPicker = false }) => {
+export const CustomMetricList: React.FC<Props> = ({
+  metrics,
+  onChange,
+  availableFields,
+  valueMappings = [],
+  showIconPicker = false,
+}) => {
+  const valueMappingOptions = useMemo(
+    () => [{ value: '', label: 'No mapping' }, ...valueMappings.map((m) => ({ value: m.id, label: m.name }))],
+    [valueMappings]
+  );
+
   const addMetric = () => {
     onChange([
       ...metrics,
@@ -197,8 +209,10 @@ export const CustomMetricList: React.FC<Props> = ({ metrics, onChange, available
         unit: 'none',
         enabled: true,
         alertThreshold: 80,
+        alertCondition: 'gt',
         alertColor: COLORS.warning,
         decimals: 1,
+        valueMappingId: '',
       },
     ]);
   };
@@ -310,8 +324,15 @@ export const CustomMetricList: React.FC<Props> = ({ metrics, onChange, available
               </div>
 
               {/* Row 4: Alerts */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <Field label="Alert when above (>)">
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                <Field label="Alert Condition">
+                  <Select
+                    options={THRESHOLD_OPERATOR_OPTIONS}
+                    value={metric.alertCondition || 'gt'}
+                    onChange={(v) => updateMetric(idx, { alertCondition: (v.value as CustomMetric['alertCondition']) || 'gt' })}
+                  />
+                </Field>
+                <Field label="Alert Value">
                   <Input
                     type="number"
                     value={metric.alertThreshold}
@@ -325,6 +346,14 @@ export const CustomMetricList: React.FC<Props> = ({ metrics, onChange, available
                   </div>
                 </Field>
               </div>
+
+              <Field label="Value Mapping">
+                <Select
+                  options={valueMappingOptions}
+                  value={metric.valueMappingId || ''}
+                  onChange={(v) => updateMetric(idx, { valueMappingId: v.value || '' })}
+                />
+              </Field>
             </div>
           )}
         </div>
