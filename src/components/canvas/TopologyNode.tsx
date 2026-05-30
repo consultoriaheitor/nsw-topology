@@ -71,7 +71,8 @@ const hiddenHandleStyle: React.CSSProperties = {
 };
 
 export const TopologyNode = memo(({ data, selected }: NodeProps<TopologyNodeType>) => {
-  const { label, icon, statusColor, status, uptimeValue, connections, metrics, textSize, iconSize, isEditing } = data;
+  const { label, ip, icon, statusColor, status, uptimeValue, connections, metrics, textSize, iconSize, isEditing } =
+    data;
   const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
   const nodeRef = useRef<HTMLDivElement>(null);
   const iconUri = getIconDataUriColored(icon, COLORS.textWhite);
@@ -221,6 +222,13 @@ export const TopologyNode = memo(({ data, selected }: NodeProps<TopologyNodeType
                   {status === 'online' ? 'Online' : 'Offline'}
                 </span>
               </div>
+              {ip && (
+                <div style={tooltipRow}>
+                  <span style={{ width: 8 }} />
+                  <span style={tooltipLabel}>IP Address:</span>
+                  <span>{ip}</span>
+                </div>
+              )}
               {uptimeValue && (
                 <div style={tooltipRow}>
                   <span style={{ width: 8 }} />
