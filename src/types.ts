@@ -121,6 +121,7 @@ export interface AppearanceConfig {
   showGrid: boolean;
   gridSize: number;
   gridColor: string;
+  showLinkLabels: boolean;
 }
 
 export interface ColorsConfig {
