@@ -453,9 +453,16 @@ export const WeathermapEdge = memo(
               <div style={{ fontWeight: 700, color: COLORS.textWhite, marginBottom: 4, fontSize: FONT.label }}>
                 {data?.sourceName || source} ↔ {data?.targetName || target}
               </div>
-              {data?.interfaceName && (
-                <div style={{ fontSize: FONT.sm + 1, color: COLORS.textMuted, marginBottom: 2 }}>
-                  {data.interfaceName}
+              {label && (
+                <div style={tooltipRow}>
+                  <span style={tooltipLabel}>Label:</span>
+                  <span style={{ color: COLORS.textWhite, fontWeight: 600 }}>{label}</span>
+                </div>
+              )}
+              {data?.interfaceName && data.interfaceName !== label && (
+                <div style={tooltipRow}>
+                  <span style={tooltipLabel}>Interface:</span>
+                  <span style={{ color: COLORS.textMuted }}>{data.interfaceName}</span>
                 </div>
               )}
               <div style={tooltipDivider} />
