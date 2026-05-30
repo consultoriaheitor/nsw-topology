@@ -1,4 +1,5 @@
 import React, { useMemo, useCallback, useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ReactFlow,
   Background,
@@ -40,7 +41,19 @@ import {
   DEFAULT_ICON_SIZE,
   resolveGrafanaColor,
 } from '../../constants';
-import { COLORS, RADIUS, BLUR, FONT, Z_INDEX } from '../../styles/tokens';
+import {
+  COLORS,
+  RADIUS,
+  BLUR,
+  FONT,
+  Z_INDEX,
+  tooltipBox,
+  tooltipDivider,
+  tooltipLabel,
+  tooltipRow,
+  tooltipTitle,
+  statusDot,
+} from '../../styles/tokens';
 import { TopologyNode, type TopologyNodeData, type MetricDisplay, type ConnectionDisplay } from './TopologyNode';
 import { WeathermapEdge, type WeathermapEdgeData } from './WeathermapEdge';
 import { FloatingConnectionLine } from './FloatingConnectionLine';
@@ -57,6 +70,13 @@ const nodeTypes = { topology: TopologyNode };
 const edgeTypes = { weathermap: WeathermapEdge };
 
 const getMetricHostName = (node?: NodeConfig): string => node?.metricHostName || node?.hostName || node?.name || '';
+
+type HoveredNodeTooltip = {
+  data: TopologyNodeData;
+  x: number;
+  y: number;
+  placement: 'top' | 'bottom';
+};
 
 interface Props {
   nodes: NodeConfig[];
@@ -141,6 +161,7 @@ export const CanvasRenderer: React.FC<Props> = ({
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'node' | 'edge'; id: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [hoveredNodeTooltip, setHoveredNodeTooltip] = useState<HoveredNodeTooltip | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastTrigger = useRef(addNodeTrigger);
 
@@ -164,6 +185,7 @@ export const CanvasRenderer: React.FC<Props> = ({
         setShowConnModal(false);
         setPendingConn(null);
         setDeleteTarget(null);
+        setHoveredNodeTooltip(null);
       });
     }
   }, [isEditing]);
@@ -408,7 +430,10 @@ export const CanvasRenderer: React.FC<Props> = ({
         if (status === 'online' && nodeHasZeroTraffic(node.id)) {
           statusColor = resolvedColors.alert;
         }
-        const searchTarget = [node.name, node.hostName, node.metricHostName, node.ip].filter(Boolean).join(' ').toLowerCase();
+        const searchTarget = [node.name, node.hostName, node.metricHostName, node.ip]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
         const isMatch = searchQuery.trim() && searchTarget.includes(searchQuery.trim().toLowerCase());
         return {
           id: node.id,
@@ -453,106 +478,103 @@ export const CanvasRenderer: React.FC<Props> = ({
     ]
   );
 
-  const initialEdges: WeathermapEdgeType[] = useMemo(
-    () => {
-      const parallelGroups = new Map<string, ConnectionConfig[]>();
-      for (const conn of connections) {
-        const key = [conn.sourceId, conn.targetId].sort().join('::');
-        parallelGroups.set(key, [...(parallelGroups.get(key) || []), conn]);
-      }
+  const initialEdges: WeathermapEdgeType[] = useMemo(() => {
+    const parallelGroups = new Map<string, ConnectionConfig[]>();
+    for (const conn of connections) {
+      const key = [conn.sourceId, conn.targetId].sort().join('::');
+      parallelGroups.set(key, [...(parallelGroups.get(key) || []), conn]);
+    }
 
-      const parallelMeta = new Map<string, { index: number; count: number }>();
-      for (const group of parallelGroups.values()) {
-        group.forEach((conn, index) => {
-          parallelMeta.set(conn.id, { index, count: group.length });
-        });
-      }
+    const parallelMeta = new Map<string, { index: number; count: number }>();
+    for (const group of parallelGroups.values()) {
+      group.forEach((conn, index) => {
+        parallelMeta.set(conn.id, { index, count: group.length });
+      });
+    }
 
-      return connections.map((conn) => {
-        const srcNode = nodeConfigs.find((n) => n.id === conn.sourceId);
-        const tgtNode = nodeConfigs.find((n) => n.id === conn.targetId);
-        const {
-          color: trafficEdgeColor,
-          width: edgeWidth,
-          dlVal,
-          ulVal,
-          srcStatus,
-          tgtStatus,
-        } = getEdgeTrafficState(conn, srcNode, tgtNode);
+    return connections.map((conn) => {
+      const srcNode = nodeConfigs.find((n) => n.id === conn.sourceId);
+      const tgtNode = nodeConfigs.find((n) => n.id === conn.targetId);
+      const {
+        color: trafficEdgeColor,
+        width: edgeWidth,
+        dlVal,
+        ulVal,
+        srcStatus,
+        tgtStatus,
+      } = getEdgeTrafficState(conn, srcNode, tgtNode);
 
-        const dlDisplay = dlVal > 0 ? formatTrafficValue(dlVal) : '';
-        const ulDisplay = ulVal > 0 ? formatTrafficValue(ulVal) : '';
+      const dlDisplay = dlVal > 0 ? formatTrafficValue(dlVal) : '';
+      const ulDisplay = ulVal > 0 ? formatTrafficValue(ulVal) : '';
 
-        const trafficHistory = getTrafficHistory(dataSeries, srcNode, conn);
+      const trafficHistory = getTrafficHistory(dataSeries, srcNode, conn);
 
-        const evaluatedMetrics = [];
-        let customMetricAlertColor = '';
-        if (conn.customMetrics) {
-          for (const m of conn.customMetrics) {
-            if (m.enabled) {
-              const val = evaluateCustomMetric(m, getMetricHostName(srcNode), hostFieldMap, hosts);
-              if (val !== null) {
-                const display = getMappedMetricDisplay(m, val, valueMappings);
-                const alerting = display.alertState ? display.alertState !== 'none' : isMetricAlerting(val, m);
-                const alertColor = display.color || resolveGrafanaColor(m.alertColor || '') || resolvedColors.alert;
-                if (alerting && !customMetricAlertColor) {
-                  customMetricAlertColor = alertColor;
-                }
-                evaluatedMetrics.push({
-                  ...m,
-                  computedValue: val,
-                  displayValue: display.text,
-                  displayColor: alerting ? alertColor : display.color || COLORS.textWhite,
-                  alertState: display.alertState,
-                  alerting,
-                });
+      const evaluatedMetrics = [];
+      let customMetricAlertColor = '';
+      if (conn.customMetrics) {
+        for (const m of conn.customMetrics) {
+          if (m.enabled) {
+            const val = evaluateCustomMetric(m, getMetricHostName(srcNode), hostFieldMap, hosts);
+            if (val !== null) {
+              const display = getMappedMetricDisplay(m, val, valueMappings);
+              const alerting = display.alertState ? display.alertState !== 'none' : isMetricAlerting(val, m);
+              const alertColor = display.color || resolveGrafanaColor(m.alertColor || '') || resolvedColors.alert;
+              if (alerting && !customMetricAlertColor) {
+                customMetricAlertColor = alertColor;
               }
+              evaluatedMetrics.push({
+                ...m,
+                computedValue: val,
+                displayValue: display.text,
+                displayColor: alerting ? alertColor : display.color || COLORS.textWhite,
+                alertState: display.alertState,
+                alerting,
+              });
             }
           }
         }
+      }
 
-        const isOffline = srcStatus === 'offline' || tgtStatus === 'offline';
-        const edgeColor = isOffline ? resolvedColors.offline : customMetricAlertColor || trafficEdgeColor;
-        const edgeIsRed = edgeColor === resolvedColors.offline || edgeColor === COLORS.red;
+      const isOffline = srcStatus === 'offline' || tgtStatus === 'offline';
+      const edgeColor = isOffline ? resolvedColors.offline : customMetricAlertColor || trafficEdgeColor;
+      const edgeIsRed = edgeColor === resolvedColors.offline || edgeColor === COLORS.red;
 
-        const parallel = parallelMeta.get(conn.id) || { index: 0, count: 1 };
-        const dynamicOffset = (parallel.index - (parallel.count - 1) / 2) * 28;
-        const parallelOffset = conn.lineMode === 'custom' ? conn.lineOffset || 0 : dynamicOffset;
+      const parallel = parallelMeta.get(conn.id) || { index: 0, count: 1 };
+      const dynamicOffset = (parallel.index - (parallel.count - 1) / 2) * 28;
+      const parallelOffset = conn.lineMode === 'custom' ? conn.lineOffset || 0 : dynamicOffset;
 
-        return {
-          id: conn.id,
-          source: conn.sourceId,
-          target: conn.targetId,
-          sourceHandle: conn.sourceHandle || 'bottom',
-          targetHandle: conn.targetHandle || 'top',
-          type: 'weathermap' as const,
-          data: {
-            label: conn.alias || conn.interfaceName || '',
-            edgeColor,
-            edgeWidth,
-            lineStyle: conn.lineStyle || 'solid',
-            hasTraffic: true,
-            animated: edgeIsRed ? false : (conn.animated ?? false),
-            showTraffic: conn.showTraffic ?? false,
-            sourceName: srcNode?.name || conn.sourceId,
-            targetName: tgtNode?.name || conn.targetId,
-            sourceStatus: srcStatus,
-            targetStatus: tgtStatus,
-            downloadValue: dlDisplay,
-            uploadValue: ulDisplay,
-            interfaceName: conn.interfaceName || '',
-            trafficHistory,
-            isRed: edgeIsRed,
-            capacity: conn.capacity || 1000,
-            customMetrics: evaluatedMetrics,
-            parallelCount: parallel.count,
-            parallelOffset,
-          },
-        };
-      });
-    },
-    [connections, nodeConfigs, getEdgeTrafficState, resolvedColors, dataSeries, hostFieldMap, hosts, valueMappings]
-  );
+      return {
+        id: conn.id,
+        source: conn.sourceId,
+        target: conn.targetId,
+        sourceHandle: conn.sourceHandle || 'bottom',
+        targetHandle: conn.targetHandle || 'top',
+        type: 'weathermap' as const,
+        data: {
+          label: conn.alias || conn.interfaceName || '',
+          edgeColor,
+          edgeWidth,
+          lineStyle: conn.lineStyle || 'solid',
+          hasTraffic: true,
+          animated: edgeIsRed ? false : (conn.animated ?? false),
+          showTraffic: conn.showTraffic ?? false,
+          sourceName: srcNode?.name || conn.sourceId,
+          targetName: tgtNode?.name || conn.targetId,
+          sourceStatus: srcStatus,
+          targetStatus: tgtStatus,
+          downloadValue: dlDisplay,
+          uploadValue: ulDisplay,
+          interfaceName: conn.interfaceName || '',
+          trafficHistory,
+          isRed: edgeIsRed,
+          capacity: conn.capacity || 1000,
+          customMetrics: evaluatedMetrics,
+          parallelCount: parallel.count,
+          parallelOffset,
+        },
+      };
+    });
+  }, [connections, nodeConfigs, getEdgeTrafficState, resolvedColors, dataSeries, hostFieldMap, hosts, valueMappings]);
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(initialNodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -602,62 +624,115 @@ export const CanvasRenderer: React.FC<Props> = ({
     [onEdgesChange]
   );
 
-  const handleConnect: OnConnect = useCallback((params) => {
-    if (!isEditing) {
-      return;
-    }
+  const handleConnect: OnConnect = useCallback(
+    (params) => {
+      if (!isEditing) {
+        return;
+      }
 
-    if (params.source && params.target && params.source !== params.target) {
-      setPendingConn({
-        sourceId: params.source,
-        targetId: params.target,
-        sourceHandle: params.sourceHandle || 'bottom',
-        targetHandle: params.targetHandle || 'top',
+      if (params.source && params.target && params.source !== params.target) {
+        setPendingConn({
+          sourceId: params.source,
+          targetId: params.target,
+          sourceHandle: params.sourceHandle || 'bottom',
+          targetHandle: params.targetHandle || 'top',
+        });
+        setEditingConn(null);
+        setShowConnModal(true);
+      }
+    },
+    [isEditing]
+  );
+
+  const handleNodeContextMenu = useCallback(
+    (e: React.MouseEvent, node: TopologyNodeType) => {
+      if (!isEditing) {
+        return;
+      }
+
+      e.preventDefault();
+      const b = containerRef.current?.getBoundingClientRect();
+      const x = e.clientX - (b?.left || 0);
+      const y = e.clientY - (b?.top || 0);
+      setCtxMenu({
+        type: 'node',
+        id: node.id,
+        x: Math.min(Math.max(8, x), Math.max(8, (b?.width || width) - 176)),
+        y: Math.min(Math.max(8, y), Math.max(8, (b?.height || height) - 96)),
       });
-      setEditingConn(null);
-      setShowConnModal(true);
-    }
-  }, [isEditing]);
+    },
+    [isEditing, width, height]
+  );
 
-  const handleNodeContextMenu = useCallback((e: React.MouseEvent, node: TopologyNodeType) => {
-    if (!isEditing) {
-      return;
-    }
+  const handleEdgeContextMenu = useCallback(
+    (e: React.MouseEvent, edge: WeathermapEdgeType) => {
+      if (!isEditing) {
+        return;
+      }
 
-    e.preventDefault();
-    const b = containerRef.current?.getBoundingClientRect();
-    const x = e.clientX - (b?.left || 0);
-    const y = e.clientY - (b?.top || 0);
-    setCtxMenu({
-      type: 'node',
-      id: node.id,
-      x: Math.min(Math.max(8, x), Math.max(8, (b?.width || width) - 176)),
-      y: Math.min(Math.max(8, y), Math.max(8, (b?.height || height) - 96)),
-    });
-  }, [isEditing, width, height]);
-
-  const handleEdgeContextMenu = useCallback((e: React.MouseEvent, edge: WeathermapEdgeType) => {
-    if (!isEditing) {
-      return;
-    }
-
-    e.preventDefault();
-    const b = containerRef.current?.getBoundingClientRect();
-    const x = e.clientX - (b?.left || 0);
-    const y = e.clientY - (b?.top || 0);
-    setCtxMenu({
-      type: 'edge',
-      id: edge.id,
-      x: Math.min(Math.max(8, x), Math.max(8, (b?.width || width) - 176)),
-      y: Math.min(Math.max(8, y), Math.max(8, (b?.height || height) - 96)),
-    });
-  }, [isEditing, width, height]);
+      e.preventDefault();
+      const b = containerRef.current?.getBoundingClientRect();
+      const x = e.clientX - (b?.left || 0);
+      const y = e.clientY - (b?.top || 0);
+      setCtxMenu({
+        type: 'edge',
+        id: edge.id,
+        x: Math.min(Math.max(8, x), Math.max(8, (b?.width || width) - 176)),
+        y: Math.min(Math.max(8, y), Math.max(8, (b?.height || height) - 96)),
+      });
+    },
+    [isEditing, width, height]
+  );
 
   const handlePaneClick = useCallback(() => {
     setCtxMenu(null);
+    setHoveredNodeTooltip(null);
   }, []);
 
-  const keepNodePointerEvents = useCallback(() => undefined, []);
+  const getTooltipPosition = useCallback(
+    (event: React.MouseEvent): Omit<HoveredNodeTooltip, 'data'> => {
+      const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : width;
+      const sidePadding = 12;
+      const tooltipHalfWidth = Math.min(140, Math.max(96, viewportWidth / 2 - sidePadding));
+      const minX = sidePadding + tooltipHalfWidth;
+      const maxX = Math.max(minX, viewportWidth - sidePadding - tooltipHalfWidth);
+      const x = Math.min(Math.max(event.clientX, minX), maxX);
+      const placement: HoveredNodeTooltip['placement'] = event.clientY > 160 ? 'top' : 'bottom';
+      const y = placement === 'top' ? event.clientY - 12 : event.clientY + 12;
+
+      return { x, y, placement };
+    },
+    [width]
+  );
+
+  const handleNodeMouseEnter = useCallback(
+    (event: React.MouseEvent, node: TopologyNodeType) => {
+      setHoveredNodeTooltip({ data: node.data, ...getTooltipPosition(event) });
+    },
+    [getTooltipPosition]
+  );
+
+  const handleNodeMouseMove = useCallback(
+    (event: React.MouseEvent, node: TopologyNodeType) => {
+      setHoveredNodeTooltip({ data: node.data, ...getTooltipPosition(event) });
+    },
+    [getTooltipPosition]
+  );
+
+  const handleNodeMouseLeave = useCallback(() => {
+    setHoveredNodeTooltip(null);
+  }, []);
+
+  const handleNodeClick = useCallback(
+    (event: React.MouseEvent, node: TopologyNodeType) => {
+      if (!isEditing) {
+        setHoveredNodeTooltip((current) =>
+          current?.data.label === node.data.label ? null : { data: node.data, ...getTooltipPosition(event) }
+        );
+      }
+    },
+    [isEditing, getTooltipPosition]
+  );
 
   const handleCtxEdit = useCallback(() => {
     if (!ctxMenu) {
@@ -764,10 +839,12 @@ export const CanvasRenderer: React.FC<Props> = ({
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={handleConnect}
+        onNodeClick={handleNodeClick}
         onNodeContextMenu={handleNodeContextMenu}
         onEdgeContextMenu={handleEdgeContextMenu}
-        onNodeMouseEnter={keepNodePointerEvents}
-        onNodeMouseLeave={keepNodePointerEvents}
+        onNodeMouseEnter={handleNodeMouseEnter}
+        onNodeMouseMove={handleNodeMouseMove}
+        onNodeMouseLeave={handleNodeMouseLeave}
         onPaneClick={handlePaneClick}
         connectionLineComponent={FloatingConnectionLine}
         connectionMode={ConnectionMode.Loose}
@@ -849,6 +926,79 @@ export const CanvasRenderer: React.FC<Props> = ({
           </Panel>
         )}
       </ReactFlow>
+
+      {hoveredNodeTooltip &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              left: hoveredNodeTooltip.x,
+              top: hoveredNodeTooltip.y,
+              transform: hoveredNodeTooltip.placement === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+              zIndex: Z_INDEX.tooltip,
+              pointerEvents: 'none',
+              maxWidth: 'calc(100vw - 24px)',
+              maxHeight: 'calc(100vh - 24px)',
+              overflowY: 'auto',
+            }}
+          >
+            <div style={{ ...tooltipBox, maxWidth: 'calc(100vw - 24px)', boxSizing: 'border-box' }}>
+              <div style={tooltipTitle}>{hoveredNodeTooltip.data.label}</div>
+              <div style={tooltipDivider} />
+              <div style={tooltipRow}>
+                <div style={statusDot(hoveredNodeTooltip.data.statusColor)} />
+                <span style={tooltipLabel}>Status:</span>
+                <span style={{ color: hoveredNodeTooltip.data.statusColor, fontWeight: 700 }}>
+                  {hoveredNodeTooltip.data.status === 'online' ? 'Online' : 'Offline'}
+                </span>
+              </div>
+              {hoveredNodeTooltip.data.uptimeValue && (
+                <div style={tooltipRow}>
+                  <span style={{ width: 8 }} />
+                  <span style={tooltipLabel}>Uptime:</span>
+                  <span>{hoveredNodeTooltip.data.uptimeValue}</span>
+                </div>
+              )}
+              {hoveredNodeTooltip.data.metrics.length > 0 && (
+                <>
+                  <div style={tooltipDivider} />
+                  <div style={{ ...tooltipLabel, marginBottom: 2 }}>Metrics:</div>
+                  {hoveredNodeTooltip.data.metrics.map((metric, index) => (
+                    <div key={index} style={tooltipRow}>
+                      <div style={statusDot(metric.alerting ? metric.color : COLORS.green)} />
+                      <span style={tooltipLabel}>{metric.label}:</span>
+                      <span
+                        style={{
+                          color: metric.alerting ? metric.color : COLORS.textSecondary,
+                          fontWeight: metric.alerting ? 700 : 400,
+                        }}
+                      >
+                        {metric.value}
+                        {metric.alerting && (
+                          <span style={{ fontSize: FONT.sm, marginLeft: 4, color: metric.color }}>âš </span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              )}
+              {hoveredNodeTooltip.data.connections.length > 0 && (
+                <>
+                  <div style={tooltipDivider} />
+                  <div style={{ ...tooltipLabel, marginBottom: 2 }}>Connections:</div>
+                  {hoveredNodeTooltip.data.connections.slice(0, 5).map((connection, index) => (
+                    <div key={index} style={{ ...tooltipRow, paddingLeft: 2 }}>
+                      <div style={statusDot(connection.color)} />
+                      <span style={{ fontSize: FONT.sm + 1, color: COLORS.textSecondary }}>{connection.name}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {ctxMenu && <ContextMenu x={ctxMenu.x} y={ctxMenu.y} onEdit={handleCtxEdit} onDelete={handleCtxDelete} />}
 
