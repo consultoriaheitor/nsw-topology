@@ -1,4 +1,4 @@
-import { WEATHERMAP_THRESHOLDS } from '../constants';
+import { COLORS } from '../styles/tokens';
 
 // traffic value -> % of link capacity
 export const getUtilizationPercent = (currentValue: number, capacity: number): number => {
@@ -9,17 +9,34 @@ export const getUtilizationPercent = (currentValue: number, capacity: number): n
   return Math.min(Math.max(percent, 0), 200);
 };
 
-// pick color from thresholds based on utilization %
-export const getUtilizationColor = (percent: number): string => {
+// pick color from configurable thresholds based on utilization %
+export const getUtilizationColor = (
+  percent: number,
+  alertEnabled = true,
+  warningThreshold = 90,
+  criticalThreshold = 100
+): string => {
   if (percent <= 0) {
-    return WEATHERMAP_THRESHOLDS[0].color;
+    return COLORS.green;
   }
-  for (const t of WEATHERMAP_THRESHOLDS) {
-    if (percent <= t.max) {
-      return t.color;
-    }
+
+  if (!alertEnabled) {
+    return COLORS.green;
   }
-  return WEATHERMAP_THRESHOLDS[WEATHERMAP_THRESHOLDS.length - 1].color;
+
+  const parsedWarning = Number(warningThreshold);
+  const parsedCritical = Number(criticalThreshold);
+  const warning = Number.isFinite(parsedWarning) && parsedWarning >= 0 ? parsedWarning : 90;
+  const critical =
+    Number.isFinite(parsedCritical) && parsedCritical >= warning ? parsedCritical : Math.max(warning, 100);
+
+  if (percent >= critical) {
+    return COLORS.red;
+  }
+  if (percent >= warning) {
+    return COLORS.warning;
+  }
+  return COLORS.green;
 };
 
 // scale edge thickness based on utilization (up to 4x)
