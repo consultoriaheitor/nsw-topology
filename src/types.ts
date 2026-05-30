@@ -108,6 +108,7 @@ export interface ConnectionConfig {
   lineOffset?: number;
   animated: boolean;
   showTraffic: boolean;
+  hideLabel?: boolean;
   convertBits?: boolean;
   downloadField: string;
   uploadField: string;
