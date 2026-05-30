@@ -1,6 +1,7 @@
 import React, { memo, useState } from 'react';
 import { getValueFormat, formattedValueToString } from '@grafana/data';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps, type Edge } from '@xyflow/react';
+import { createPortal } from 'react-dom';
 import {
   COLORS,
   FONT,
@@ -43,6 +44,31 @@ export type WeathermapEdgeData = {
 };
 
 type WeathermapEdgeType = Edge<WeathermapEdgeData, 'weathermap'>;
+
+type TooltipPosition = {
+  left: number;
+  top: number;
+  placement: 'top' | 'bottom';
+};
+
+const getTooltipPosition = (clientX: number, clientY: number): TooltipPosition => {
+  if (typeof window === 'undefined') {
+    return { left: clientX, top: clientY, placement: 'top' };
+  }
+
+  const sidePadding = 12;
+  const tooltipHalfWidth = Math.min(170, Math.max(110, window.innerWidth / 2 - sidePadding));
+  const minLeft = sidePadding + tooltipHalfWidth;
+  const maxLeft = Math.max(minLeft, window.innerWidth - sidePadding - tooltipHalfWidth);
+  const left = Math.min(Math.max(clientX, minLeft), maxLeft);
+  const hasRoomAbove = clientY > 220;
+
+  return {
+    left,
+    top: hasRoomAbove ? clientY - 14 : clientY + 14,
+    placement: hasRoomAbove ? 'top' : 'bottom',
+  };
+};
 
 const formatAxisValue = (bps: number): string => {
   if (bps >= 1e9) {
@@ -311,7 +337,7 @@ export const WeathermapEdge = memo(
     source,
     target,
   }: EdgeProps<WeathermapEdgeType>) => {
-    const [hovered, setHovered] = useState(false);
+    const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
 
     const edgeColor = data?.edgeColor || '#4b5563';
     const edgeWidth = data?.edgeWidth || 2;
@@ -344,6 +370,10 @@ export const WeathermapEdge = memo(
 
     const shouldAnimate = animated && !isRed;
     const isDashAnimated = shouldAnimate && (lineStyle === 'dashed' || lineStyle === 'dotted');
+    const showTooltip = (event: React.MouseEvent) => {
+      setTooltipPosition(getTooltipPosition(event.clientX, event.clientY));
+    };
+    const hideTooltip = () => setTooltipPosition(null);
 
     return (
       <>
@@ -352,8 +382,9 @@ export const WeathermapEdge = memo(
           fill="none"
           stroke="transparent"
           strokeWidth={Math.max(edgeWidth + 14, 20)}
-          onMouseEnter={() => setHovered(true)}
-          onMouseLeave={() => setHovered(false)}
+          onMouseEnter={showTooltip}
+          onMouseMove={showTooltip}
+          onMouseLeave={hideTooltip}
           style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
         />
 
@@ -385,8 +416,9 @@ export const WeathermapEdge = memo(
         {!hideLabel && (label || (showTraffic && (data?.downloadValue || data?.uploadValue))) && (
           <EdgeLabelRenderer>
             <div
-              onMouseEnter={() => setHovered(true)}
-              onMouseLeave={() => setHovered(false)}
+              onMouseEnter={showTooltip}
+              onMouseMove={showTooltip}
+              onMouseLeave={hideTooltip}
               style={{
                 position: 'absolute',
                 transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
@@ -444,19 +476,22 @@ export const WeathermapEdge = memo(
           </EdgeLabelRenderer>
         )}
 
-        {hovered && (
-          <EdgeLabelRenderer>
+        {tooltipPosition &&
+          typeof document !== 'undefined' &&
+          createPortal(
             <div
-              onMouseEnter={() => setHovered(true)}
-              onMouseLeave={() => setHovered(false)}
               style={{
                 ...tooltipBox,
-                position: 'absolute',
-                transform: `translate(-50%, -100%) translate(${labelX}px, ${labelY - 24}px)`,
-                pointerEvents: 'auto',
+                position: 'fixed',
+                left: tooltipPosition.left,
+                top: tooltipPosition.top,
+                transform: tooltipPosition.placement === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+                pointerEvents: 'none',
                 zIndex: Z_INDEX.tooltip,
                 minWidth: 220,
                 maxWidth: 'calc(100vw - 24px)',
+                maxHeight: 'calc(100vh - 24px)',
+                overflowY: 'auto',
                 whiteSpace: 'normal',
                 boxSizing: 'border-box',
               }}
@@ -580,9 +615,9 @@ export const WeathermapEdge = memo(
                   </div>
                 </>
               )}
-            </div>
-          </EdgeLabelRenderer>
-        )}
+            </div>,
+            document.body
+          )}
       </>
     );
   }
