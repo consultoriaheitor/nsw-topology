@@ -1,7 +1,18 @@
-import React, { memo } from 'react';
+import React, { memo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Handle, Position, NodeResizeControl, type NodeProps, type Node } from '@xyflow/react';
 import { getIconDataUriColored } from '../icons';
-import { COLORS, FONT } from '../../styles/tokens';
+import {
+  COLORS,
+  FONT,
+  Z_INDEX,
+  tooltipBox,
+  tooltipDivider,
+  tooltipLabel,
+  tooltipRow,
+  tooltipTitle,
+  statusDot,
+} from '../../styles/tokens';
 
 export type MetricDisplay = {
   label: string;
@@ -36,6 +47,12 @@ export type TopologyNodeData = {
 
 type TopologyNodeType = Node<TopologyNodeData, 'topology'>;
 
+type TooltipPosition = {
+  left: number;
+  top: number;
+  placement: 'top' | 'bottom';
+};
+
 const handleStyle: React.CSSProperties = {
   width: 10,
   height: 10,
@@ -54,9 +71,45 @@ const hiddenHandleStyle: React.CSSProperties = {
 };
 
 export const TopologyNode = memo(({ data, selected }: NodeProps<TopologyNodeType>) => {
-  const { label, icon, statusColor, textSize, iconSize, isEditing } = data;
+  const { label, icon, statusColor, status, uptimeValue, connections, metrics, textSize, iconSize, isEditing } = data;
+  const [tooltipPosition, setTooltipPosition] = useState<TooltipPosition | null>(null);
+  const nodeRef = useRef<HTMLDivElement>(null);
   const iconUri = getIconDataUriColored(icon, COLORS.textWhite);
   const currentHandleStyle = isEditing ? handleStyle : hiddenHandleStyle;
+
+  const getTooltipPosition = (): TooltipPosition | null => {
+    const rect = nodeRef.current?.getBoundingClientRect();
+    if (!rect || typeof window === 'undefined') {
+      return null;
+    }
+
+    const viewportWidth = window.innerWidth || rect.left + rect.width;
+    const sidePadding = 12;
+    const tooltipHalfWidth = Math.min(140, Math.max(96, viewportWidth / 2 - sidePadding));
+    const minLeft = sidePadding + tooltipHalfWidth;
+    const maxLeft = Math.max(minLeft, viewportWidth - sidePadding - tooltipHalfWidth);
+    const left = Math.min(Math.max(rect.left + rect.width / 2, minLeft), maxLeft);
+    const hasRoomAbove = rect.top > 160;
+
+    return {
+      left,
+      top: hasRoomAbove ? rect.top - 8 : rect.bottom + 8,
+      placement: hasRoomAbove ? 'top' : 'bottom',
+    };
+  };
+
+  const showTooltip = () => {
+    const position = getTooltipPosition();
+    if (position) {
+      setTooltipPosition(position);
+    }
+  };
+
+  const handleNodeClick = () => {
+    if (!isEditing) {
+      setTooltipPosition((current) => (current ? null : getTooltipPosition()));
+    }
+  };
 
   return (
     <>
@@ -90,6 +143,11 @@ export const TopologyNode = memo(({ data, selected }: NodeProps<TopologyNodeType
       <Handle type="source" position={Position.Right} id="right" style={currentHandleStyle} />
 
       <div
+        ref={nodeRef}
+        onMouseEnter={showTooltip}
+        onMouseMove={showTooltip}
+        onMouseLeave={() => setTooltipPosition(null)}
+        onClick={handleNodeClick}
         style={{
           width: '100%',
           height: '100%',
@@ -109,6 +167,7 @@ export const TopologyNode = memo(({ data, selected }: NodeProps<TopologyNodeType
           gap: 4,
           padding: '8px 6px',
           cursor: isEditing ? 'grab' : 'default',
+          pointerEvents: 'auto',
         }}
       >
         <img
@@ -135,6 +194,79 @@ export const TopologyNode = memo(({ data, selected }: NodeProps<TopologyNodeType
           {label}
         </div>
       </div>
+
+      {tooltipPosition &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            style={{
+              position: 'fixed',
+              left: tooltipPosition.left,
+              top: tooltipPosition.top,
+              transform: tooltipPosition.placement === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
+              zIndex: Z_INDEX.tooltip,
+              pointerEvents: 'none',
+              maxWidth: 'calc(100vw - 24px)',
+              maxHeight: 'calc(100vh - 24px)',
+              overflowY: 'auto',
+            }}
+          >
+            <div style={{ ...tooltipBox, maxWidth: 'calc(100vw - 24px)', boxSizing: 'border-box' }}>
+              <div style={tooltipTitle}>{label}</div>
+              <div style={tooltipDivider} />
+              <div style={tooltipRow}>
+                <div style={statusDot(data.statusColor)} />
+                <span style={tooltipLabel}>Status:</span>
+                <span style={{ color: statusColor, fontWeight: 700 }}>
+                  {status === 'online' ? 'Online' : 'Offline'}
+                </span>
+              </div>
+              {uptimeValue && (
+                <div style={tooltipRow}>
+                  <span style={{ width: 8 }} />
+                  <span style={tooltipLabel}>Uptime:</span>
+                  <span>{uptimeValue}</span>
+                </div>
+              )}
+              {metrics.length > 0 && (
+                <>
+                  <div style={tooltipDivider} />
+                  <div style={{ ...tooltipLabel, marginBottom: 2 }}>Metrics:</div>
+                  {metrics.map((metric, index) => (
+                    <div key={index} style={tooltipRow}>
+                      <div style={statusDot(metric.alerting ? metric.color : COLORS.green)} />
+                      <span style={tooltipLabel}>{metric.label}:</span>
+                      <span
+                        style={{
+                          color: metric.alerting ? metric.color : COLORS.textSecondary,
+                          fontWeight: metric.alerting ? 700 : 400,
+                        }}
+                      >
+                        {metric.value}
+                        {metric.alerting && (
+                          <span style={{ fontSize: FONT.sm, marginLeft: 4, color: metric.color }}>!</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </>
+              )}
+              {connections.length > 0 && (
+                <>
+                  <div style={tooltipDivider} />
+                  <div style={{ ...tooltipLabel, marginBottom: 2 }}>Connections:</div>
+                  {connections.slice(0, 5).map((connection, index) => (
+                    <div key={index} style={{ ...tooltipRow, paddingLeft: 2 }}>
+                      <div style={statusDot(connection.color)} />
+                      <span style={{ fontSize: FONT.sm + 1, color: COLORS.textSecondary }}>{connection.name}</span>
+                    </div>
+                  ))}
+                </>
+              )}
+            </div>
+          </div>,
+          document.body
+        )}
     </>
   );
 });
