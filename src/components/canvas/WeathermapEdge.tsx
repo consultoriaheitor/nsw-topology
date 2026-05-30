@@ -33,6 +33,10 @@ export type WeathermapEdgeData = {
   trafficHistory: TrafficHistoryPoint[];
   isRed: boolean;
   capacity: number;
+  utilizationPercent: number;
+  capacityAlertEnabled: boolean;
+  capacityWarningThreshold: number;
+  capacityCriticalThreshold: number;
   customMetrics?: any[];
   parallelCount?: number;
   parallelOffset?: number;
@@ -51,6 +55,11 @@ const formatAxisValue = (bps: number): string => {
     return `${(bps / 1e3).toFixed(0)}K`;
   }
   return `${bps.toFixed(0)}`;
+};
+
+const formatCapacityGbps = (capacityMbps: number): string => {
+  const gbps = (capacityMbps || 0) / 1000;
+  return `${Number.isInteger(gbps) ? gbps.toFixed(0) : gbps.toFixed(3).replace(/0+$/, '').replace(/\.$/, '')} Gbps`;
 };
 
 const getCubicPoint = (
@@ -492,6 +501,23 @@ export const WeathermapEdge = memo(
               <div style={tooltipRow}>
                 <span style={{ color: COLORS.trafficUpload, fontWeight: 600 }}>↑ Upload:</span>
                 <span style={{ color: COLORS.trafficUpload, fontWeight: 600 }}>{data?.uploadValue || '—'}</span>
+              </div>
+
+              <div style={tooltipRow}>
+                <span style={tooltipLabel}>Capacity:</span>
+                <span>{formatCapacityGbps(data?.capacity || 1000)}</span>
+              </div>
+              <div style={tooltipRow}>
+                <span style={tooltipLabel}>Utilization:</span>
+                <span style={{ color: edgeColor, fontWeight: 600 }}>{(data?.utilizationPercent || 0).toFixed(1)}%</span>
+              </div>
+              <div style={tooltipRow}>
+                <span style={tooltipLabel}>Bandwidth alerts:</span>
+                <span>
+                  {data?.capacityAlertEnabled
+                    ? `Warning ${data.capacityWarningThreshold}% / Critical ${data.capacityCriticalThreshold}%`
+                    : 'Disabled'}
+                </span>
               </div>
 
               {data?.customMetrics && data.customMetrics.length > 0 && (

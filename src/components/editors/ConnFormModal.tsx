@@ -1,9 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Modal, Button, Field, Input, Select, UnitPicker } from '@grafana/ui';
 import { NodeConfig, ConnectionConfig, ZabbixHost, ValueMapping, CustomMetric, ConnectionLineMode } from '../../types';
-import { CAPACITY_OPTIONS, LINE_MODE_OPTIONS, LINE_STYLE_OPTIONS } from '../../constants';
+import { LINE_MODE_OPTIONS, LINE_STYLE_OPTIONS } from '../../constants';
 import { COLORS, FONT, SECTION_HEADER } from '../../styles/tokens';
 import { CustomMetricList } from './CustomMetricList';
+
+const formatGbps = (capacityMbps?: number): string => {
+  const gbps = (capacityMbps || 1000) / 1000;
+  return Number.isInteger(gbps) ? String(gbps) : String(Number(gbps.toFixed(3)));
+};
 
 function extractInterfaceBaseName(fieldName: string): string {
   const m = fieldName.match(/^(Interface\s+[^:]+?)(?:\(\))?\s*:/i);
@@ -42,13 +47,20 @@ export const ConnFormModal: React.FC<Props> = ({
   const [targetId, setTargetId] = useState(conn?.targetId || pendingConn?.targetId || '');
   const [interfaceName, setInterfaceName] = useState(conn?.interfaceName || '');
   const [alias, setAlias] = useState(conn?.alias || '');
-  const [capacity, setCapacity] = useState(String(conn?.capacity || 1000));
+  const [capacityGbps, setCapacityGbps] = useState(formatGbps(conn?.capacity));
   const [lineStyle, setLineStyle] = useState(conn?.lineStyle || 'solid');
   const [lineMode, setLineMode] = useState<ConnectionLineMode>(conn?.lineMode || 'dynamic');
   const [lineOffset, setLineOffset] = useState(String(conn?.lineOffset ?? 0));
   const [animated, setAnimated] = useState(conn?.animated ?? true);
   const [showTraffic, setShowTraffic] = useState(conn?.showTraffic ?? false);
   const [hideLabel, setHideLabel] = useState(conn?.hideLabel ?? false);
+  const [capacityAlertEnabled, setCapacityAlertEnabled] = useState(conn?.capacityAlertEnabled ?? true);
+  const [capacityWarningThreshold, setCapacityWarningThreshold] = useState(
+    String(conn?.capacityWarningThreshold ?? 90)
+  );
+  const [capacityCriticalThreshold, setCapacityCriticalThreshold] = useState(
+    String(conn?.capacityCriticalThreshold ?? 100)
+  );
   const [downloadField, setDownloadField] = useState(conn?.downloadField || '');
   const [uploadField, setUploadField] = useState(conn?.uploadField || '');
   const [unit, setUnit] = useState(conn?.unit || 'bps');
@@ -130,13 +142,23 @@ export const ConnFormModal: React.FC<Props> = ({
   };
 
   const save = () => {
+    const capacityGbpsValue = Number(capacityGbps);
+    const warningThreshold = Number(capacityWarningThreshold);
+    const criticalThreshold = Number(capacityCriticalThreshold);
+    const normalizedWarningThreshold =
+      Number.isFinite(warningThreshold) && warningThreshold >= 0 ? warningThreshold : 90;
+    const normalizedCriticalThreshold =
+      Number.isFinite(criticalThreshold) && criticalThreshold >= normalizedWarningThreshold
+        ? criticalThreshold
+        : Math.max(normalizedWarningThreshold, 100);
+
     onSave({
       id: conn?.id || `conn-${Date.now()}`,
       sourceId,
       targetId,
       sourceHandle: conn?.sourceHandle || pendingConn?.sourceHandle || 'bottom',
       targetHandle: conn?.targetHandle || pendingConn?.targetHandle || 'top',
-      capacity: Number(capacity) || 1000,
+      capacity: capacityGbpsValue > 0 ? capacityGbpsValue * 1000 : 1000,
       interfaceName,
       alias,
       lineStyle,
@@ -145,6 +167,9 @@ export const ConnFormModal: React.FC<Props> = ({
       animated,
       showTraffic,
       hideLabel,
+      capacityAlertEnabled,
+      capacityWarningThreshold: normalizedWarningThreshold,
+      capacityCriticalThreshold: normalizedCriticalThreshold,
       downloadField,
       uploadField,
       unit,
@@ -211,11 +236,14 @@ export const ConnFormModal: React.FC<Props> = ({
           <Select options={trafficFields} value={uploadField} onChange={(v) => setUploadField(v.value || '')} />
         </Field>
       </div>
-      <Field label="Capacity">
-        <Select
-          options={CAPACITY_OPTIONS.map((o) => ({ value: String(o.value), label: o.label }))}
-          value={capacity}
-          onChange={(v) => setCapacity(v.value || '1000')}
+      <Field label="Bandwidth (Gbps)">
+        <Input
+          type="number"
+          value={capacityGbps}
+          onChange={(e) => setCapacityGbps(e.currentTarget.value)}
+          min={0.001}
+          step={0.1}
+          placeholder="3.5"
         />
       </Field>
       <Field label="Unit">
@@ -240,7 +268,50 @@ export const ConnFormModal: React.FC<Props> = ({
           />
           Show Download/Upload on line
         </label>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            cursor: 'pointer',
+            fontSize: FONT.label,
+            color: COLORS.textSecondary,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={capacityAlertEnabled}
+            onChange={(e) => setCapacityAlertEnabled(e.target.checked)}
+            style={{ accentColor: COLORS.accent }}
+          />
+          Generate bandwidth alerts
+        </label>
       </div>
+
+      {capacityAlertEnabled && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+          <Field label="Warning at (%)">
+            <Input
+              type="number"
+              value={capacityWarningThreshold}
+              onChange={(e) => setCapacityWarningThreshold(e.currentTarget.value)}
+              min={0}
+              max={200}
+              step={1}
+            />
+          </Field>
+          <Field label="Critical at (%)">
+            <Input
+              type="number"
+              value={capacityCriticalThreshold}
+              onChange={(e) => setCapacityCriticalThreshold(e.currentTarget.value)}
+              min={0}
+              max={200}
+              step={1}
+            />
+          </Field>
+        </div>
+      )}
 
       <div style={SECTION_HEADER}>📊 Custom Metrics</div>
       <CustomMetricList

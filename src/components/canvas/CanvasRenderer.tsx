@@ -355,6 +355,7 @@ export const CanvasRenderer: React.FC<Props> = ({
       let width = 2;
       let dlVal = 0;
       let ulVal = 0;
+      let utilizationPercent = 0;
 
       if (srcStatus === 'offline' || tgtStatus === 'offline') {
         color = resolvedColors.offline;
@@ -366,16 +367,21 @@ export const CanvasRenderer: React.FC<Props> = ({
             ulVal = typeof host.items[conn.uploadField] === 'number' ? (host.items[conn.uploadField] as number) : 0;
           }
           if (dlVal === 0 && ulVal === 0) {
-            color = COLORS.red;
+            color = conn.capacityAlertEnabled === false ? COLORS.green : COLORS.red;
           } else {
-            const pct = getUtilizationPercent(Math.max(dlVal, ulVal), conn.capacity);
-            color = getUtilizationColor(pct);
-            width = getUtilizationThickness(pct, 2);
+            utilizationPercent = getUtilizationPercent(Math.max(dlVal, ulVal), conn.capacity);
+            color = getUtilizationColor(
+              utilizationPercent,
+              conn.capacityAlertEnabled ?? true,
+              conn.capacityWarningThreshold ?? 90,
+              conn.capacityCriticalThreshold ?? 100
+            );
+            width = getUtilizationThickness(utilizationPercent, 2);
           }
         }
       }
 
-      return { color, width, dlVal, ulVal, srcStatus, tgtStatus };
+      return { color, width, dlVal, ulVal, utilizationPercent, srcStatus, tgtStatus };
     },
     [getNodeStatus, hosts, resolvedColors]
   );
@@ -481,6 +487,7 @@ export const CanvasRenderer: React.FC<Props> = ({
         width: edgeWidth,
         dlVal,
         ulVal,
+        utilizationPercent,
         srcStatus,
         tgtStatus,
       } = getEdgeTrafficState(conn, srcNode, tgtNode);
@@ -550,6 +557,10 @@ export const CanvasRenderer: React.FC<Props> = ({
           trafficHistory,
           isRed: edgeIsRed,
           capacity: conn.capacity || 1000,
+          utilizationPercent,
+          capacityAlertEnabled: conn.capacityAlertEnabled ?? true,
+          capacityWarningThreshold: conn.capacityWarningThreshold ?? 90,
+          capacityCriticalThreshold: conn.capacityCriticalThreshold ?? 100,
           customMetrics: evaluatedMetrics,
           parallelCount: parallel.count,
           parallelOffset,

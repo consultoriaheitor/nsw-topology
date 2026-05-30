@@ -109,6 +109,9 @@ export interface ConnectionConfig {
   animated: boolean;
   showTraffic: boolean;
   hideLabel?: boolean;
+  capacityAlertEnabled?: boolean;
+  capacityWarningThreshold?: number;
+  capacityCriticalThreshold?: number;
   convertBits?: boolean;
   downloadField: string;
   uploadField: string;
