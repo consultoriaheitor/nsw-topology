@@ -442,6 +442,7 @@ export const CanvasRenderer: React.FC<Props> = ({
           style: {
             width: node.width || DEFAULT_NODE_WIDTH,
             height: node.height || DEFAULT_NODE_HEIGHT,
+            pointerEvents: 'all',
             ...(isMatch ? { boxShadow: `0 0 20px 4px rgba(59, 130, 246, 0.6)`, borderRadius: 10 } : {}),
           },
           data: {
