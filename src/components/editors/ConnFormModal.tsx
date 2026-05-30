@@ -194,11 +194,11 @@ export const ConnFormModal: React.FC<Props> = ({
         >
           <input
             type="checkbox"
-            checked={hideLabel}
-            onChange={(e) => setHideLabel(e.target.checked)}
+            checked={!hideLabel}
+            onChange={(e) => setHideLabel(!e.target.checked)}
             style={{ accentColor: COLORS.accent }}
           />
-          Hide link label completely
+          Show label on map
         </label>
       </div>
 

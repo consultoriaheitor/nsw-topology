@@ -308,6 +308,8 @@ export const WeathermapEdge = memo(
     const edgeWidth = data?.edgeWidth || 2;
     const lineStyle = data?.lineStyle || 'solid';
     const label = data?.label || '';
+    const interfaceName = data?.interfaceName || '';
+    const tooltipLabelText = label || interfaceName;
     const animated = data?.animated ?? false;
     const showTraffic = data?.showTraffic ?? false;
     const hideLabel = data?.hideLabel ?? false;
@@ -453,16 +455,16 @@ export const WeathermapEdge = memo(
               <div style={{ fontWeight: 700, color: COLORS.textWhite, marginBottom: 4, fontSize: FONT.label }}>
                 {data?.sourceName || source} ↔ {data?.targetName || target}
               </div>
-              {label && (
+              {tooltipLabelText && (
                 <div style={tooltipRow}>
                   <span style={tooltipLabel}>Label:</span>
-                  <span style={{ color: COLORS.textWhite, fontWeight: 600 }}>{label}</span>
+                  <span style={{ color: COLORS.textWhite, fontWeight: 600 }}>{tooltipLabelText}</span>
                 </div>
               )}
-              {data?.interfaceName && data.interfaceName !== label && (
+              {interfaceName && interfaceName !== tooltipLabelText && (
                 <div style={tooltipRow}>
                   <span style={tooltipLabel}>Interface:</span>
-                  <span style={{ color: COLORS.textMuted }}>{data.interfaceName}</span>
+                  <span style={{ color: COLORS.textMuted }}>{interfaceName}</span>
                 </div>
               )}
               <div style={tooltipDivider} />

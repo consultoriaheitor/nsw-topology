@@ -457,6 +457,8 @@ export const CanvasRenderer: React.FC<Props> = ({
     ]
   );
 
+  const showLinkLabels = appearance.showLinkLabels !== false;
+
   const initialEdges: WeathermapEdgeType[] = useMemo(() => {
     const parallelGroups = new Map<string, ConnectionConfig[]>();
     for (const conn of connections) {
@@ -537,7 +539,7 @@ export const CanvasRenderer: React.FC<Props> = ({
           hasTraffic: true,
           animated: edgeIsRed ? false : (conn.animated ?? false),
           showTraffic: conn.showTraffic ?? false,
-          hideLabel: conn.hideLabel ?? false,
+          hideLabel: !showLinkLabels || (conn.hideLabel ?? false),
           sourceName: srcNode?.name || conn.sourceId,
           targetName: tgtNode?.name || conn.targetId,
           sourceStatus: srcStatus,
@@ -554,7 +556,17 @@ export const CanvasRenderer: React.FC<Props> = ({
         },
       };
     });
-  }, [connections, nodeConfigs, getEdgeTrafficState, resolvedColors, dataSeries, hostFieldMap, hosts, valueMappings]);
+  }, [
+    connections,
+    nodeConfigs,
+    getEdgeTrafficState,
+    resolvedColors,
+    dataSeries,
+    hostFieldMap,
+    hosts,
+    valueMappings,
+    showLinkLabels,
+  ]);
 
   const [rfNodes, setRfNodes, onNodesChange] = useNodesState(initialNodes);
   const [rfEdges, setRfEdges, onEdgesChange] = useEdgesState(initialEdges);

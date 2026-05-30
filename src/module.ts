@@ -52,6 +52,12 @@ export const plugin = new PanelPlugin<TopologyOptions>(TopologyPanel)
         category: ['Appearance'],
         showIf: (opts) => opts.appearance?.showGrid === true,
       })
+      .addBooleanSwitch({
+        path: 'appearance.showLinkLabels',
+        name: 'Show Link Labels',
+        defaultValue: DEFAULT_APPEARANCE.showLinkLabels,
+        category: ['Appearance'],
+      })
 
       .addColorPicker({
         path: 'colors.online',
@@ -98,4 +104,3 @@ export const plugin = new PanelPlugin<TopologyOptions>(TopologyPanel)
 
     return builder;
   });
-
