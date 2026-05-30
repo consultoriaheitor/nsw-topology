@@ -1,5 +1,4 @@
 import React, { useMemo, useCallback, useEffect, useState, useRef } from 'react';
-import { createPortal } from 'react-dom';
 import {
   ReactFlow,
   Background,
@@ -41,19 +40,7 @@ import {
   DEFAULT_ICON_SIZE,
   resolveGrafanaColor,
 } from '../../constants';
-import {
-  COLORS,
-  RADIUS,
-  BLUR,
-  FONT,
-  Z_INDEX,
-  tooltipBox,
-  tooltipDivider,
-  tooltipLabel,
-  tooltipRow,
-  tooltipTitle,
-  statusDot,
-} from '../../styles/tokens';
+import { COLORS, RADIUS, BLUR, FONT, Z_INDEX } from '../../styles/tokens';
 import { TopologyNode, type TopologyNodeData, type MetricDisplay, type ConnectionDisplay } from './TopologyNode';
 import { WeathermapEdge, type WeathermapEdgeData } from './WeathermapEdge';
 import { FloatingConnectionLine } from './FloatingConnectionLine';
@@ -70,13 +57,6 @@ const nodeTypes = { topology: TopologyNode };
 const edgeTypes = { weathermap: WeathermapEdge };
 
 const getMetricHostName = (node?: NodeConfig): string => node?.metricHostName || node?.hostName || node?.name || '';
-
-type HoveredNodeTooltip = {
-  data: TopologyNodeData;
-  x: number;
-  y: number;
-  placement: 'top' | 'bottom';
-};
 
 interface Props {
   nodes: NodeConfig[];
@@ -161,7 +141,6 @@ export const CanvasRenderer: React.FC<Props> = ({
   } | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'node' | 'edge'; id: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [hoveredNodeTooltip, setHoveredNodeTooltip] = useState<HoveredNodeTooltip | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const lastTrigger = useRef(addNodeTrigger);
 
@@ -185,7 +164,6 @@ export const CanvasRenderer: React.FC<Props> = ({
         setShowConnModal(false);
         setPendingConn(null);
         setDeleteTarget(null);
-        setHoveredNodeTooltip(null);
       });
     }
   }, [isEditing]);
@@ -687,53 +665,7 @@ export const CanvasRenderer: React.FC<Props> = ({
 
   const handlePaneClick = useCallback(() => {
     setCtxMenu(null);
-    setHoveredNodeTooltip(null);
   }, []);
-
-  const getTooltipPosition = useCallback(
-    (event: React.MouseEvent): Omit<HoveredNodeTooltip, 'data'> => {
-      const viewportWidth = typeof window !== 'undefined' ? window.innerWidth : width;
-      const sidePadding = 12;
-      const tooltipHalfWidth = Math.min(140, Math.max(96, viewportWidth / 2 - sidePadding));
-      const minX = sidePadding + tooltipHalfWidth;
-      const maxX = Math.max(minX, viewportWidth - sidePadding - tooltipHalfWidth);
-      const x = Math.min(Math.max(event.clientX, minX), maxX);
-      const placement: HoveredNodeTooltip['placement'] = event.clientY > 160 ? 'top' : 'bottom';
-      const y = placement === 'top' ? event.clientY - 12 : event.clientY + 12;
-
-      return { x, y, placement };
-    },
-    [width]
-  );
-
-  const handleNodeMouseEnter = useCallback(
-    (event: React.MouseEvent, node: TopologyNodeType) => {
-      setHoveredNodeTooltip({ data: node.data, ...getTooltipPosition(event) });
-    },
-    [getTooltipPosition]
-  );
-
-  const handleNodeMouseMove = useCallback(
-    (event: React.MouseEvent, node: TopologyNodeType) => {
-      setHoveredNodeTooltip({ data: node.data, ...getTooltipPosition(event) });
-    },
-    [getTooltipPosition]
-  );
-
-  const handleNodeMouseLeave = useCallback(() => {
-    setHoveredNodeTooltip(null);
-  }, []);
-
-  const handleNodeClick = useCallback(
-    (event: React.MouseEvent, node: TopologyNodeType) => {
-      if (!isEditing) {
-        setHoveredNodeTooltip((current) =>
-          current?.data.label === node.data.label ? null : { data: node.data, ...getTooltipPosition(event) }
-        );
-      }
-    },
-    [isEditing, getTooltipPosition]
-  );
 
   const handleCtxEdit = useCallback(() => {
     if (!ctxMenu) {
@@ -840,12 +772,8 @@ export const CanvasRenderer: React.FC<Props> = ({
         onNodesChange={handleNodesChange}
         onEdgesChange={handleEdgesChange}
         onConnect={handleConnect}
-        onNodeClick={handleNodeClick}
         onNodeContextMenu={handleNodeContextMenu}
         onEdgeContextMenu={handleEdgeContextMenu}
-        onNodeMouseEnter={handleNodeMouseEnter}
-        onNodeMouseMove={handleNodeMouseMove}
-        onNodeMouseLeave={handleNodeMouseLeave}
         onPaneClick={handlePaneClick}
         connectionLineComponent={FloatingConnectionLine}
         connectionMode={ConnectionMode.Loose}
@@ -927,79 +855,6 @@ export const CanvasRenderer: React.FC<Props> = ({
           </Panel>
         )}
       </ReactFlow>
-
-      {hoveredNodeTooltip &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div
-            style={{
-              position: 'fixed',
-              left: hoveredNodeTooltip.x,
-              top: hoveredNodeTooltip.y,
-              transform: hoveredNodeTooltip.placement === 'top' ? 'translate(-50%, -100%)' : 'translate(-50%, 0)',
-              zIndex: Z_INDEX.tooltip,
-              pointerEvents: 'none',
-              maxWidth: 'calc(100vw - 24px)',
-              maxHeight: 'calc(100vh - 24px)',
-              overflowY: 'auto',
-            }}
-          >
-            <div style={{ ...tooltipBox, maxWidth: 'calc(100vw - 24px)', boxSizing: 'border-box' }}>
-              <div style={tooltipTitle}>{hoveredNodeTooltip.data.label}</div>
-              <div style={tooltipDivider} />
-              <div style={tooltipRow}>
-                <div style={statusDot(hoveredNodeTooltip.data.statusColor)} />
-                <span style={tooltipLabel}>Status:</span>
-                <span style={{ color: hoveredNodeTooltip.data.statusColor, fontWeight: 700 }}>
-                  {hoveredNodeTooltip.data.status === 'online' ? 'Online' : 'Offline'}
-                </span>
-              </div>
-              {hoveredNodeTooltip.data.uptimeValue && (
-                <div style={tooltipRow}>
-                  <span style={{ width: 8 }} />
-                  <span style={tooltipLabel}>Uptime:</span>
-                  <span>{hoveredNodeTooltip.data.uptimeValue}</span>
-                </div>
-              )}
-              {hoveredNodeTooltip.data.metrics.length > 0 && (
-                <>
-                  <div style={tooltipDivider} />
-                  <div style={{ ...tooltipLabel, marginBottom: 2 }}>Metrics:</div>
-                  {hoveredNodeTooltip.data.metrics.map((metric, index) => (
-                    <div key={index} style={tooltipRow}>
-                      <div style={statusDot(metric.alerting ? metric.color : COLORS.green)} />
-                      <span style={tooltipLabel}>{metric.label}:</span>
-                      <span
-                        style={{
-                          color: metric.alerting ? metric.color : COLORS.textSecondary,
-                          fontWeight: metric.alerting ? 700 : 400,
-                        }}
-                      >
-                        {metric.value}
-                        {metric.alerting && (
-                          <span style={{ fontSize: FONT.sm, marginLeft: 4, color: metric.color }}>âš </span>
-                        )}
-                      </span>
-                    </div>
-                  ))}
-                </>
-              )}
-              {hoveredNodeTooltip.data.connections.length > 0 && (
-                <>
-                  <div style={tooltipDivider} />
-                  <div style={{ ...tooltipLabel, marginBottom: 2 }}>Connections:</div>
-                  {hoveredNodeTooltip.data.connections.slice(0, 5).map((connection, index) => (
-                    <div key={index} style={{ ...tooltipRow, paddingLeft: 2 }}>
-                      <div style={statusDot(connection.color)} />
-                      <span style={{ fontSize: FONT.sm + 1, color: COLORS.textSecondary }}>{connection.name}</span>
-                    </div>
-                  ))}
-                </>
-              )}
-            </div>
-          </div>,
-          document.body
-        )}
 
       {ctxMenu && <ContextMenu x={ctxMenu.x} y={ctxMenu.y} onEdit={handleCtxEdit} onDelete={handleCtxDelete} />}
 
