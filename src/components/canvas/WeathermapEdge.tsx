@@ -1,7 +1,16 @@
 import React, { memo, useState } from 'react';
 import { getValueFormat, formattedValueToString } from '@grafana/data';
 import { BaseEdge, EdgeLabelRenderer, getBezierPath, type EdgeProps, type Edge } from '@xyflow/react';
-import { COLORS, FONT, Z_INDEX, tooltipBox, tooltipDivider, tooltipLabel, tooltipRow, statusDot } from '../../styles/tokens';
+import {
+  COLORS,
+  FONT,
+  Z_INDEX,
+  tooltipBox,
+  tooltipDivider,
+  tooltipLabel,
+  tooltipRow,
+  statusDot,
+} from '../../styles/tokens';
 
 export type TrafficHistoryPoint = { time: number; dl: number; ul: number };
 
@@ -13,6 +22,7 @@ export type WeathermapEdgeData = {
   hasTraffic: boolean;
   animated: boolean;
   showTraffic: boolean;
+  hideLabel: boolean;
   sourceName: string;
   targetName: string;
   sourceStatus: string;
@@ -71,7 +81,14 @@ const getCurvedEdgePath = (
   offset: number
 ): [string, number, number] => {
   if (Math.abs(offset) < 1) {
-    const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+    const [path, labelX, labelY] = getBezierPath({
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      sourcePosition,
+      targetPosition,
+    });
     return [path, labelX, labelY];
   }
 
@@ -79,7 +96,14 @@ const getCurvedEdgePath = (
   const dy = targetY - sourceY;
   const length = Math.hypot(dx, dy);
   if (!length) {
-    const [path, labelX, labelY] = getBezierPath({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition });
+    const [path, labelX, labelY] = getBezierPath({
+      sourceX,
+      sourceY,
+      targetX,
+      targetY,
+      sourcePosition,
+      targetPosition,
+    });
     return [path, labelX, labelY];
   }
 
@@ -286,6 +310,7 @@ export const WeathermapEdge = memo(
     const label = data?.label || '';
     const animated = data?.animated ?? false;
     const showTraffic = data?.showTraffic ?? false;
+    const hideLabel = data?.hideLabel ?? false;
     const isRed = data?.isRed ?? false;
     const parallelOffset = data?.parallelOffset || 0;
 
@@ -346,7 +371,7 @@ export const WeathermapEdge = memo(
           </>
         )}
 
-        {(label || (showTraffic && (data?.downloadValue || data?.uploadValue))) && (
+        {!hideLabel && (label || (showTraffic && (data?.downloadValue || data?.uploadValue))) && (
           <EdgeLabelRenderer>
             <div
               onMouseEnter={() => setHovered(true)}

@@ -48,6 +48,7 @@ export const ConnFormModal: React.FC<Props> = ({
   const [lineOffset, setLineOffset] = useState(String(conn?.lineOffset ?? 0));
   const [animated, setAnimated] = useState(conn?.animated ?? true);
   const [showTraffic, setShowTraffic] = useState(conn?.showTraffic ?? false);
+  const [hideLabel, setHideLabel] = useState(conn?.hideLabel ?? false);
   const [downloadField, setDownloadField] = useState(conn?.downloadField || '');
   const [uploadField, setUploadField] = useState(conn?.uploadField || '');
   const [unit, setUnit] = useState(conn?.unit || 'bps');
@@ -143,6 +144,7 @@ export const ConnFormModal: React.FC<Props> = ({
       lineOffset: Number(lineOffset) || 0,
       animated,
       showTraffic,
+      hideLabel,
       downloadField,
       uploadField,
       unit,
@@ -179,6 +181,26 @@ export const ConnFormModal: React.FC<Props> = ({
       <Field label="Alias (label on line)">
         <Input value={alias} onChange={(e) => setAlias(e.currentTarget.value)} placeholder="e.g. OLT-SW01" />
       </Field>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 0 8px' }}>
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            cursor: 'pointer',
+            fontSize: FONT.label,
+            color: COLORS.textSecondary,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={hideLabel}
+            onChange={(e) => setHideLabel(e.target.checked)}
+            style={{ accentColor: COLORS.accent }}
+          />
+          Hide link label completely
+        </label>
+      </div>
 
       <div style={SECTION_HEADER}>📊 Traffic</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 8 }}>

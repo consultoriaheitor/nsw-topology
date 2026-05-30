@@ -537,6 +537,7 @@ export const CanvasRenderer: React.FC<Props> = ({
           hasTraffic: true,
           animated: edgeIsRed ? false : (conn.animated ?? false),
           showTraffic: conn.showTraffic ?? false,
+          hideLabel: conn.hideLabel ?? false,
           sourceName: srcNode?.name || conn.sourceId,
           targetName: tgtNode?.name || conn.targetId,
           sourceStatus: srcStatus,
