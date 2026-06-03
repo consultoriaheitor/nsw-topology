@@ -128,6 +128,39 @@ export const CanvasRenderer: React.FC<Props> = ({
     [colors]
   );
 
+  // O(1) lookup maps — built once per data change so building nodes/edges no longer
+  // does Array.find / filter inside loops (was O(nodes^2 * connections) on every refresh).
+  const nodeById = useMemo(() => {
+    const map = new Map<string, NodeConfig>();
+    for (const node of nodeConfigs) {
+      // first-wins, matching the previous nodeConfigs.find() semantics
+      if (!map.has(node.id)) {
+        map.set(node.id, node);
+      }
+    }
+    return map;
+  }, [nodeConfigs]);
+
+  // Each node id -> connections that touch it (as source or target), preserving connection order.
+  const connectionsByNodeId = useMemo(() => {
+    const map = new Map<string, ConnectionConfig[]>();
+    const add = (nodeId: string, conn: ConnectionConfig) => {
+      const list = map.get(nodeId);
+      if (list) {
+        list.push(conn);
+      } else {
+        map.set(nodeId, [conn]);
+      }
+    };
+    for (const conn of connections) {
+      add(conn.sourceId, conn);
+      if (conn.targetId !== conn.sourceId) {
+        add(conn.targetId, conn);
+      }
+    }
+    return map;
+  }, [connections]);
+
   const [ctxMenu, setCtxMenu] = useState<{ type: 'node' | 'edge'; id: string; x: number; y: number } | null>(null);
   const [editingNode, setEditingNode] = useState<NodeConfig | null>(null);
   const [showNodeModal, setShowNodeModal] = useState(false);
@@ -248,14 +281,11 @@ export const CanvasRenderer: React.FC<Props> = ({
 
   const nodeHasZeroTraffic = useCallback(
     (nodeId: string): boolean => {
-      return connections.some((conn) => {
-        if (conn.sourceId !== nodeId && conn.targetId !== nodeId) {
-          return false;
-        }
+      return (connectionsByNodeId.get(nodeId) || []).some((conn) => {
         if (!conn.downloadField) {
           return false;
         }
-        const srcNode = nodeConfigs.find((n) => n.id === conn.sourceId);
+        const srcNode = nodeById.get(conn.sourceId);
         if (!srcNode) {
           return false;
         }
@@ -271,7 +301,7 @@ export const CanvasRenderer: React.FC<Props> = ({
         return dl === 0 && ul === 0;
       });
     },
-    [connections, nodeConfigs, hosts]
+    [connectionsByNodeId, nodeById, hosts]
   );
 
   const getNodeMetrics = useCallback(
@@ -388,22 +418,21 @@ export const CanvasRenderer: React.FC<Props> = ({
 
   const getNodeConnections = useCallback(
     (nodeId: string): ConnectionDisplay[] => {
-      return connections
-        .filter((c) => c.sourceId === nodeId || c.targetId === nodeId)
+      return (connectionsByNodeId.get(nodeId) || [])
         .map((c) => {
           const oid = c.sourceId === nodeId ? c.targetId : c.sourceId;
-          const otherNode = nodeConfigs.find((n) => n.id === oid);
+          const otherNode = nodeById.get(oid);
           const name = otherNode?.name || oid;
 
-          const srcNode = nodeConfigs.find((n) => n.id === c.sourceId);
-          const tgtNode = nodeConfigs.find((n) => n.id === c.targetId);
+          const srcNode = nodeById.get(c.sourceId);
+          const tgtNode = nodeById.get(c.targetId);
           const { color } = getEdgeTrafficState(c, srcNode, tgtNode);
 
           return { name, color };
         })
         .slice(0, 5);
     },
-    [connections, nodeConfigs, getEdgeTrafficState]
+    [connectionsByNodeId, nodeById, getEdgeTrafficState]
   );
 
   const initialNodes: TopologyNodeType[] = useMemo(
@@ -480,8 +509,8 @@ export const CanvasRenderer: React.FC<Props> = ({
     }
 
     return connections.map((conn) => {
-      const srcNode = nodeConfigs.find((n) => n.id === conn.sourceId);
-      const tgtNode = nodeConfigs.find((n) => n.id === conn.targetId);
+      const srcNode = nodeById.get(conn.sourceId);
+      const tgtNode = nodeById.get(conn.targetId);
       const {
         color: trafficEdgeColor,
         width: edgeWidth,
@@ -569,7 +598,7 @@ export const CanvasRenderer: React.FC<Props> = ({
     });
   }, [
     connections,
-    nodeConfigs,
+    nodeById,
     getEdgeTrafficState,
     resolvedColors,
     dataSeries,
